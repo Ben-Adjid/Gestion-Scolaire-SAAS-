@@ -25,3 +25,4 @@ Schedule::command('sauvegarde:executer')->dailyAt('02:00');
 
 Schedule::command('resume:hebdomadaire')->weeklyOn(1, '07:00');
 Schedule::command('sante:alertes')->dailyAt('09:00');
+Schedule::command('sanctum:prune-expired --hours=24')->dailyAt('03:00');

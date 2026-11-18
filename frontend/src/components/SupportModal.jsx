@@ -36,6 +36,11 @@ export default function SupportModal({ open, onClose }) {
 
   const assistantDisponible = user?.role !== 'parent'
 
+  // Contact direct de la plateforme (e-mail, WhatsApp), réglé dans frontend/.env. Les parents s'adressent à l'école.
+  const emailSupport = (import.meta.env.VITE_SUPPORT_EMAIL || '').trim()
+  const whatsappSupport = (import.meta.env.VITE_SUPPORT_WHATSAPP || '').replace(/\D/g, '')
+  const contactDirect = user?.role !== 'parent' && Boolean(emailSupport || whatsappSupport)
+
   const ouvrirAssistant = () => {
     onClose()
     window.dispatchEvent(new Event('ouvrir-assistant'))
@@ -64,6 +69,32 @@ export default function SupportModal({ open, onClose }) {
         )
       }
     >
+      {contactDirect && (
+        <div className="support-direct">
+          <p className="form-section-aide">Contactez directement l’équipe de la plateforme :</p>
+          <div className="support-direct-boutons">
+            {emailSupport && (
+              <a
+                className="btn btn--ghost"
+                href={`mailto:${emailSupport}?subject=${encodeURIComponent(`Support — ${etablissement?.nom || ''}`)}`}
+              >
+                Écrire un e-mail
+              </a>
+            )}
+            {whatsappSupport && (
+              <a
+                className="btn btn--ghost"
+                href={`https://wa.me/${whatsappSupport}?text=${encodeURIComponent(`Bonjour, je vous contacte depuis ${etablissement?.nom || 'notre établissement'}.`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Écrire sur WhatsApp
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
       {prioritaire ? (
         <form id="support-modal" onSubmit={envoyer}>
           <p className="form-section-aide">Décrivez votre besoin : notre équipe vous répond en priorité.</p>

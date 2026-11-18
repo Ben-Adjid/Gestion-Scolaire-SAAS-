@@ -69,7 +69,8 @@ export async function downloadTablePdf({ title, subtitle, columns, rows, filenam
   const largeur = doc.internal.pageSize.getWidth()
 
   // Bandeau d'en-tête aux couleurs de l'école, titre en blanc.
-  doc.setFillColor(31, 92, 74)
+  const couleur = couleurEcole()
+  doc.setFillColor(...couleur)
   doc.rect(0, 0, largeur, 26, 'F')
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(16)
@@ -93,7 +94,7 @@ export async function downloadTablePdf({ title, subtitle, columns, rows, filenam
     startY: 32,
     margin: { top: 32, bottom: 18, left: 14, right: 14 },
     styles: { fontSize: 9, cellPadding: 3, textColor: [21, 48, 42], lineColor: [228, 222, 211], lineWidth: 0.1 },
-    headStyles: { fillColor: [31, 92, 74], textColor: 255, fontStyle: 'bold', halign: 'center' },
+    headStyles: { fillColor: couleur, textColor: 255, fontStyle: "bold", halign: "center" },
     alternateRowStyles: { fillColor: [243, 240, 233] },
     didDrawPage: () => {
       // Pied de page : date de génération et numérotation.
@@ -218,7 +219,7 @@ export async function downloadBulletinsPdf({ bulletins, etablissement, trimestre
         startY: currentY + 8,
         margin: { left: 14, right: 14 },
         styles: { fontSize: 8, cellPadding: 2.5 },
-        headStyles: { fillColor: [31, 92, 74], textColor: 255, fontSize: 8 },
+        headStyles: { fillColor: couleurEcole(), textColor: 255, fontSize: 8 },
         alternateRowStyles: { fillColor: [248, 250, 252] },
       })
 
@@ -271,4 +272,19 @@ async function chargerJsPDF() {
 async function chargerAutoTable() {
   const module = await import('jspdf-autotable')
   return module.autoTable || module.default
+}
+
+// Couleur de l'école (variable --primary du thème actif), en RVB pour jsPDF. Vert par défaut.
+function couleurEcole() {
+  try {
+    const valeur = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()
+    const hex = /^#([0-9a-f]{6})$/i.exec(valeur)
+    if (hex) {
+      const n = parseInt(hex[1], 16)
+      return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+    }
+  } catch {
+    // Hors navigateur : couleur par défaut.
+  }
+  return [31, 92, 74]
 }

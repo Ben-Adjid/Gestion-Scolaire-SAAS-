@@ -35,6 +35,12 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->shouldRenderJsonWhen(fn (Request $request, Throwable $e) => $request->is('api/*') || $request->expectsJson());
 
+        // Surveillance : chaque erreur inattendue est enregistrée (page « Erreurs serveur ») et signalée en production.
+        // Le rapport habituel dans les journaux continue normalement.
+        $exceptions->report(function (Throwable $e) {
+            app(\App\Services\SurveillanceErreurs::class)->enregistrer($e);
+        });
+
         $exceptions->render(function (AuthenticationException $e, Request $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
                 return response()->json(['message' => 'Non authentifié.'], 401);

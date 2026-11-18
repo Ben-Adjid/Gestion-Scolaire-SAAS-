@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { authApi } from '../api/endpoints'
+import { effacerDonneesHorsLigne } from '../utils/horsLigne'
 
 const AuthContext = createContext(null)
 
@@ -53,6 +54,8 @@ export function AuthProvider({ children }) {
     } catch {
       // ignore logout errors (token may already be invalid)
     }
+    // Listes de classes et d'élèves gardées pour le mode hors ligne : effacées de l'appareil.
+    effacerDonneesHorsLigne()
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     setUser(null)

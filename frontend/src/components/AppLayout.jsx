@@ -6,6 +6,7 @@ import { ROLE_LABELS } from '../utils/constants'
 import { aLaFonctionnalite } from '../utils/plans'
 import Assistant from './Assistant'
 import RechercheGlobale from './RechercheGlobale'
+import SynchroHorsLigne from './SynchroHorsLigne'
 import BandeauAbonnement from './BandeauAbonnement'
 import SupportModal from './SupportModal'
 import { appliquerTheme } from '../utils/themes'
@@ -90,6 +91,7 @@ const NAV_SECTIONS = [
       { to: '/super-admin/support', label: 'Support', icon: 'clipboard', roles: ['super_admin'] },
       { to: '/super-admin/risque', label: 'Écoles à risque', icon: 'alert', roles: ['super_admin'] },
       { to: '/super-admin/journal', label: 'Journal', icon: 'clock', roles: ['super_admin'] },
+      { to: '/super-admin/erreurs', label: 'Erreurs serveur', icon: 'alert', roles: ['super_admin'] },
     ],
   },
 ]
@@ -394,6 +396,7 @@ export default function AppLayout() {
         </header>
         <main className="content">
           <BandeauAbonnement />
+          {!['parent', 'super_admin'].includes(user?.role) && <SynchroHorsLigne />}
           <Outlet />
         </main>
       </div>

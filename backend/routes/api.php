@@ -281,6 +281,8 @@ Route::middleware(['auth:sanctum', 'subscription', 'enforce_tenant', 'reserve_pa
     Route::middleware('role:super_admin')->prefix('super-admin')->group(function () {
         Route::get('/dashboard', [SuperAdminController::class, 'dashboard']);
         Route::get('/journal', [SuperAdminController::class, 'journal']);
+        Route::get('/erreurs', [SuperAdminController::class, 'erreurs']);
+        Route::delete('/erreurs/{erreur}', [SuperAdminController::class, 'resoudreErreur'])->whereNumber('erreur');
         Route::get('/etablissements/export', [SuperAdminController::class, 'exporterEtablissements']);
         Route::post('/annonces', [SuperAdminController::class, 'annoncer']);
         Route::get('/etablissements', [SuperAdminController::class, 'indexEtablissements']);

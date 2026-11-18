@@ -89,7 +89,7 @@ function RoleRoute({ roles, children }) {
 // Sections de la plateforme : /super-admin (écoles), /super-admin/abonnements, /groupes, etc.
 function SuperAdminRoute() {
   const { section } = useParams()
-  const sections = ['abonnements', 'groupes', 'annonces', 'support', 'journal', 'risque']
+  const sections = ['abonnements', 'groupes', 'annonces', 'support', 'journal', 'risque', 'erreurs']
   return <SuperAdmin section={sections.includes(section) ? section : 'ecoles'} />
 }
 

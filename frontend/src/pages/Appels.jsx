@@ -6,6 +6,9 @@ import Alert from '../components/Alert'
 import { useToast } from '../components/Toast'
 import { useAuth } from '../context/AuthContext'
 import { Select } from '../components/Field'
+import {
+  classesMemorisees, elevesMemorises, estErreurReseau, memoriserClasses, memoriserEleves, mettreEnAttente,
+} from '../utils/horsLigne'
 
 const STATUTS = [
   { value: 'present', label: 'Présent', cls: 'appel-btn--present' },
@@ -32,8 +35,22 @@ export default function Appels() {
   const locked = appel?.statut === 'valide' || appel?.statut === 'confirme'
   const confirme = appel?.statut === 'confirme'
 
+  // Sans réseau, les données viennent du cache de l'appareil (mode hors ligne).
+  const [horsLigne, setHorsLigne] = useState(false)
+
   useEffect(() => {
-    classesApi.list({ per_page: 1000 }).then((res) => setClasses(res.data.data)).catch(() => {})
+    classesApi
+      .list({ per_page: 1000 })
+      .then((res) => {
+        setClasses(res.data.data)
+        memoriserClasses(res.data.data)
+      })
+      .catch((err) => {
+        if (estErreurReseau(err)) {
+          setClasses(classesMemorisees())
+          setHorsLigne(true)
+        }
+      })
   }, [])
 
   const fetchAppel = useCallback(async () => {
@@ -54,6 +71,8 @@ export default function Appels() {
 
       const students = studentsRes.data.data
       setEleves(students)
+      memoriserEleves(classeId, students)
+      setHorsLigne(false)
       setAppel(appelRes.data)
 
       const map = {}
@@ -65,7 +84,19 @@ export default function Appels() {
       })
       setStatuts(map)
     } catch (err) {
-      setError(err.message)
+      if (estErreurReseau(err)) {
+        // Hors ligne : liste d'élèves gardée sur l'appareil, tout le monde présent par défaut.
+        const memorises = elevesMemorises(classeId)
+        setHorsLigne(true)
+        setEleves(memorises)
+        setAppel(null)
+        setStatuts(Object.fromEntries(memorises.map((e) => [e.id, 'present'])))
+        if (memorises.length === 0) {
+          setError('Pas de réseau, et cette classe n’a pas encore été ouverte sur cet appareil. Ouvrez-la une fois avec le réseau pour pouvoir faire l’appel hors ligne.')
+        }
+      } else {
+        setError(err.message)
+      }
     } finally {
       setLoading(false)
     }
@@ -88,9 +119,24 @@ export default function Appels() {
         etudiant_id: e.id,
         statut: statuts[e.id] || 'present',
       }))
-      const res = await appelsApi.save({ classe_id: classeId, date, valider, presences })
-      toast.success(res.data.message)
-      fetchAppel()
+      const donnees = { classe_id: Number(classeId), date, valider, presences }
+      if (!navigator.onLine) {
+        mettreEnAttente(donnees)
+        toast.success('Pas de réseau : l’appel est gardé sur cet appareil et partira dès le retour de la connexion.')
+        return
+      }
+      try {
+        const res = await appelsApi.save(donnees)
+        toast.success(res.data.message)
+        fetchAppel()
+      } catch (err) {
+        if (estErreurReseau(err)) {
+          mettreEnAttente(donnees)
+          toast.success('Connexion perdue : l’appel est gardé sur cet appareil et partira dès le retour du réseau.')
+          return
+        }
+        throw err
+      }
     } catch (err) {
       toast.error(err.message)
     } finally {
@@ -133,6 +179,11 @@ export default function Appels() {
       </div>
 
       {error && <Alert>{error}</Alert>}
+      {horsLigne && !error && (
+        <div className="info-panel" style={{ marginBottom: 12 }}>
+          <strong>Mode hors ligne.</strong> Vous pouvez faire l’appel : il sera envoyé automatiquement au retour du réseau.
+        </div>
+      )}
 
       {!classeId ? (
         <EmptyState title="Choisissez une classe" description="Sélectionnez une classe et une date pour faire l'appel." />

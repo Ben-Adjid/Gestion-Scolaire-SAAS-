@@ -46,7 +46,9 @@ return [
     |
     */
 
-    'expiration' => env('SANCTUM_TOKEN_EXPIRATION', 60 * 24 * 7),
+    // Durée d'une session (en minutes) : 12 heures par défaut, soit une journée de travail.
+    // Au-delà, l'utilisateur se reconnecte. Réglable avec SANCTUM_TOKEN_EXPIRATION.
+    'expiration' => (int) env('SANCTUM_TOKEN_EXPIRATION', 60 * 12),
 
     /*
     |--------------------------------------------------------------------------

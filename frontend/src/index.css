@@ -5634,3 +5634,32 @@ textarea.input {
     flex-wrap: wrap;
   }
 }
+
+/* ---------- Contact direct du support ---------- */
+.support-direct {
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.support-direct-boutons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ---------- Mode hors ligne ---------- */
+.synchro-hors-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  border-radius: 8px;
+  background: var(--tint-info, #e0f2fe);
+  color: var(--text);
+  font-size: 14px;
+}
+.synchro-hors-ligne--coupe {
+  background: var(--tint-warning, #fef3c7);
+}

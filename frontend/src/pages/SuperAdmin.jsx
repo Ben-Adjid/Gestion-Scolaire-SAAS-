@@ -11,6 +11,7 @@ import { DemandesAbonnementCard, RenouvellementCard, SupportPlateformeCard } fro
 import GroupesCard from '../components/GroupesCard'
 import JournalPlateformeCard from '../components/JournalPlateformeCard'
 import FicheEtablissement from '../components/FicheEtablissement'
+import ErreursServeurCard from '../components/ErreursServeurCard'
 
 const PLANS = [
   { value: 'standard',   label: 'Standard',   price: 25000,  color: '#1F5C4A' },
@@ -103,6 +104,7 @@ const TITRES = {
   support: ['Support', 'Demandes envoyées par les écoles à la plateforme.'],
   journal: ['Journal de la plateforme', 'Toutes les actions faites par la plateforme.'],
   risque: ['Écoles à risque', 'Écoles actives dont le score de santé est inférieur ou égal à 50/100.'],
+  erreurs: ['Erreurs serveur', 'Surveillance de la production : erreurs inattendues et nombre d’occurrences.'],
 }
 
 const SEUIL_RISQUE = 50
@@ -309,6 +311,7 @@ export default function SuperAdmin({ section = 'ecoles' }) {
       )}
       {section === 'groupes' && <GroupesCard key={`groupes-${version}`} />}
       {section === 'journal' && <JournalPlateformeCard />}
+      {section === 'erreurs' && <ErreursServeurCard />}
       {section === 'support' && <SupportPlateformeCard />}
       <FicheEtablissement etablissementId={ficheId} onClose={() => setFicheId(null)} onChange={fetchAll} />
 

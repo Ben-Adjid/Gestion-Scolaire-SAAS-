@@ -74,9 +74,14 @@ class AbsenceController extends Controller
         }
 
         if ($request->query('classe_id')) {
-            $query->whereHas('etudiant', fn ($q) => 
+            $query->whereHas('etudiant', fn ($q) =>
                 $q->where('classe_id', $request->query('classe_id'))
             );
+        }
+
+        // Filtre par jour : indispensable à la page d'appel, qui ne doit pré-cocher que les absences du jour choisi.
+        if ($request->query('date')) {
+            $query->whereDate('date', $request->query('date'));
         }
 
         $absences = $query->paginate((int) $request->query('per_page', 30));

@@ -466,27 +466,50 @@ class SuperAdminController extends Controller
     public function recuAbonnement(\App\Models\AbonnementPaiement $paiement, string $titre = 'Reçu d’abonnement')
     {
         $etablissement = Etablissement::withoutGlobalScopes()->find($paiement->etablissement_id);
-        $numero = 'ABO-'.str_pad((string) $paiement->id, 6, '0', STR_PAD_LEFT);
-        $e = fn ($v) => e((string) $v);
-        $formule = config("plans.plans.{$paiement->plan}.libelle", $paiement->plan);
+        $identite = \App\Services\IdentiteEtablissement::pour($etablissement);
+        $couleur = \App\Services\IdentiteEtablissement::COULEUR_DEFAUT; // document de la plateforme, à ses couleurs
+        $modes = ['especes' => 'Espèces', 'virement' => 'Virement', 'cheque' => 'Chèque', 'mobile_money' => 'Mobile money', 'carte' => 'Carte bancaire'];
+        $prefixe = $titre === 'Facture' ? 'FAC-' : 'ABO-';
 
-        $html = '<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Reçu '.$numero.'</title>'
-            .'<style>body{font-family:Georgia,serif;color:#15302A;padding:40px;max-width:720px;margin:auto}'
-            .'h1{font-size:22px;margin:0}table{width:100%;border-collapse:collapse;margin-top:20px}'
-            .'td{padding:8px;border-bottom:1px solid #E4DED3}.montant{font-size:20px;font-weight:bold}'
-            .'@media print{button{display:none}}</style></head><body>'
-            .'<h1>Plateforme de gestion scolaire</h1>'
-            .'<p>'.$e($titre).' n° '.$numero.'</p>'
-            .'<table>'
-            .'<tr><td>Établissement</td><td>'.$e($etablissement?->nom).'</td></tr>'
-            .'<tr><td>Formule</td><td>'.$e($formule).'</td></tr>'
-            .'<tr><td>Période</td><td>'.$e($paiement->periode_debut?->format('d/m/Y')).' au '.$e($paiement->periode_fin?->format('d/m/Y')).'</td></tr>'
-            .'<tr><td>Mode</td><td>'.$e($paiement->mode_paiement).'</td></tr>'
-            .'<tr><td>Référence</td><td>'.$e($paiement->reference ?: '—').'</td></tr>'
-            .'<tr><td>Montant</td><td class="montant">'.number_format((float) $paiement->montant, 0, ',', ' ').' FCFA</td></tr>'
-            .'</table><button onclick="window.print()">Imprimer ou enregistrer en PDF</button></body></html>';
+        $html = view('documents.document-abonnement', [
+            'titre' => $titre,
+            'numero' => $prefixe.str_pad((string) $paiement->id, 6, '0', STR_PAD_LEFT),
+            'plateforme' => 'Plateforme de gestion scolaire',
+            'couleur' => $couleur,
+            'teinte' => \App\Services\IdentiteEtablissement::teinte($couleur),
+            'ecole' => $identite,
+            'formule' => config("plans.plans.{$paiement->plan}.libelle", $paiement->plan),
+            'periode' => $paiement->periode_debut?->format('d/m/Y').' au '.$paiement->periode_fin?->format('d/m/Y'),
+            'mode' => $modes[$paiement->mode_paiement] ?? ucfirst((string) $paiement->mode_paiement),
+            'reference' => $paiement->reference,
+            'montant' => number_format((float) $paiement->montant, 0, ',', ' '),
+            'dateEmission' => 'Émis le '.($paiement->created_at ?? now())->format('d/m/Y'),
+        ])->render();
 
         return response($html, 200, ['Content-Type' => 'text/html; charset=UTF-8']);
+    }
+
+    /** Erreurs serveur regroupées, les plus récentes d'abord (surveillance de la production). */
+    public function erreurs(Request $request): JsonResponse
+    {
+        return response()->json(
+            DB::table('erreurs_serveur')
+                ->orderByDesc('derniere_fois')
+                ->paginate(min((int) $request->query('per_page', 25), 100))
+        );
+    }
+
+    /** Marque une erreur comme résolue : elle disparaît de la liste et réapparaîtra si elle se reproduit. */
+    public function resoudreErreur(Request $request, int $erreur): JsonResponse
+    {
+        $ligne = DB::table('erreurs_serveur')->where('id', $erreur)->first();
+        abort_unless($ligne, 404);
+        DB::table('erreurs_serveur')->where('id', $erreur)->delete();
+
+        \App\Services\AuditLogger::log($request->user(), 'erreur_resolue', 'erreurs_serveur', $erreur,
+            'Erreur marquée comme résolue : '.mb_substr($ligne->message, 0, 120));
+
+        return response()->json(['message' => 'Erreur marquée comme résolue.']);
     }
 
     /** Journal des actions faites par la plateforme (création, suspension, renouvellement, support, annonces). */

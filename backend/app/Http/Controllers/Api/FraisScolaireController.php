@@ -234,44 +234,35 @@ class FraisScolaireController extends Controller
         $paiement->load(['etudiant:id,nom,prenom,matricule', 'fraisScolaire']);
         $frais = $paiement->fraisScolaire;
         $etablissement = Etablissement::find($paiement->etablissement_id);
-        $numero = 'REC-'.str_pad((string) $paiement->id, 6, '0', STR_PAD_LEFT);
-        $e = fn ($v) => e((string) $v);
+        $identite = \App\Services\IdentiteEtablissement::pour($etablissement);
+        $montant = fn ($v) => number_format((float) $v, 0, ',', ' ');
+        $modes = ['especes' => 'Espèces', 'virement' => 'Virement', 'cheque' => 'Chèque', 'mobile_money' => 'Mobile money', 'carte' => 'Carte bancaire'];
 
-        // Identité de l'école : logo intégré (le reçu est un fichier autonome), couleur, devise et coordonnées.
-        $logo = '';
-        if ($etablissement?->logo_path) {
-            $fichier = realpath(public_path($etablissement->logo_path));
-            $dansPublic = $fichier && str_starts_with($fichier, (string) realpath(public_path()));
-            if ($dansPublic && is_file($fichier) && filesize($fichier) <= 1024 * 1024) {
-                $type = mime_content_type($fichier) ?: 'image/png';
-                $logo = '<img src="data:'.$type.';base64,'.base64_encode((string) file_get_contents($fichier)).'" alt="" style="height:64px;margin-right:16px">';
-            }
-        }
-        $couleur = preg_match('/^#[0-9A-Fa-f]{6}$/', (string) $etablissement?->couleur_principale) ? $etablissement->couleur_principale : '#1F5C4A';
-        $coordonnees = implode(' — ', array_filter([$etablissement?->adresse, $etablissement?->telephone ? 'Tél : '.$etablissement->telephone : null]));
-
-        $html = '<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Reçu '.$numero.'</title>'
-            .'<style>body{font-family:Georgia,serif;color:#15302A;padding:40px;max-width:720px;margin:auto}'
-            .'.entete{display:flex;align-items:center;border-bottom:3px solid '.$couleur.';padding-bottom:14px}'
-            .'h1{font-size:22px;margin:0;color:'.$couleur.'}.petit{font-size:13px;color:#5b6b66;margin:2px 0}'
-            .'table{width:100%;border-collapse:collapse;margin-top:20px}'
-            .'td{padding:8px;border-bottom:1px solid #E4DED3}.montant{font-size:20px;font-weight:bold}'
-            .'@media print{button{display:none}}</style></head><body>'
-            .'<div class="entete">'.$logo.'<div>'
-            .'<h1>'.$e($etablissement?->nom ?? 'Établissement').'</h1>'
-            .($etablissement?->devise ? '<p class="petit">'.$e($etablissement->devise).'</p>' : '')
-            .($coordonnees ? '<p class="petit">'.$e($coordonnees).'</p>' : '')
-            .'</div></div>'
-            .'<p>Reçu de paiement n° '.$numero.'</p>'
-            .'<table>'
-            .'<tr><td>Élève</td><td>'.$e($paiement->etudiant?->prenom.' '.$paiement->etudiant?->nom).' ('.$e($paiement->etudiant?->matricule).')</td></tr>'
-            .'<tr><td>Frais</td><td>'.$e($frais?->libelle).' — '.$e($frais?->annee_scolaire).'</td></tr>'
-            .'<tr><td>Date</td><td>'.$e($paiement->date_paiement?->format('d/m/Y')).'</td></tr>'
-            .'<tr><td>Mode</td><td>'.$e($paiement->mode_paiement).'</td></tr>'
-            .'<tr><td>Montant reçu</td><td class="montant">'.number_format((float) $paiement->montant, 0, ',', ' ').' FCFA</td></tr>'
-            .'<tr><td>Reste à payer</td><td>'.number_format((float) $frais?->reste, 0, ',', ' ').' FCFA</td></tr>'
-            .'</table><p style="margin-top:40px">Signature : ____________________</p>'
-            .'<button onclick="window.print()">Imprimer</button></body></html>';
+        // Gabarit Blade : échappement automatique, mise en page aux couleurs de l'école.
+        $html = view('documents.recu-paiement', [
+            'numero' => 'REC-'.str_pad((string) $paiement->id, 6, '0', STR_PAD_LEFT),
+            'ecole' => $identite,
+            'logo' => $identite['logo'],
+            'couleur' => $identite['couleur'],
+            'teinte' => $identite['teinte'],
+            'datePaiement' => $paiement->date_paiement?->format('d/m/Y'),
+            'eleve' => [
+                'nom' => trim(($paiement->etudiant?->prenom ?? '').' '.($paiement->etudiant?->nom ?? '')),
+                'matricule' => $paiement->etudiant?->matricule,
+            ],
+            'frais' => [
+                'libelle' => $frais?->libelle ?? 'Frais de scolarité',
+                'annee' => $frais?->annee_scolaire,
+                'total' => $montant($frais?->montant_total),
+                'paye' => $montant($frais?->montant_paye),
+                'reste' => $montant($frais?->reste),
+            ],
+            'solde' => $frais && (float) $frais->reste <= 0,
+            'mode' => $modes[$paiement->mode_paiement] ?? ucfirst((string) $paiement->mode_paiement),
+            'reference' => $paiement->reference,
+            'montant' => $montant($paiement->montant),
+            'emisLe' => now()->format('d/m/Y à H:i'),
+        ])->render();
 
         return response($html, 200, ['Content-Type' => 'text/html; charset=UTF-8']);
     }
