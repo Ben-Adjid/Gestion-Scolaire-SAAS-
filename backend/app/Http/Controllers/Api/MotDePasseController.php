@@ -44,6 +44,39 @@ class MotDePasseController extends Controller
         return response()->json(['message' => self::MESSAGE_GENERIQUE]);
     }
 
+    /** Activation d'un compte d'établissement : l'administrateur choisit son mot de passe (jeton d'invitation, 72 h). */
+    public function activer(Request $request): JsonResponse
+    {
+        $donnees = $request->validate([
+            'email' => 'required|email',
+            'token' => 'required|string',
+            'password' => ['required', 'confirmed', Password::min(8)],
+        ]);
+
+        $cle = 'activation:'.$donnees['email'];
+        $ligne = DB::table('password_reset_tokens')->where('email', $cle)->first();
+        $valide = $ligne
+            && \Illuminate\Support\Carbon::parse($ligne->created_at)->greaterThan(now()->subHours(72))
+            && Hash::check($donnees['token'], $ligne->token);
+
+        if (! $valide) {
+            return response()->json(['message' => 'Ce lien d’activation est invalide ou a expiré. Demandez à la plateforme de vous renvoyer l’invitation.'], 422);
+        }
+
+        $compte = User::withoutGlobalScopes()->where('email', $donnees['email'])->where('role', 'admin')->firstOrFail();
+        $compte->forceFill([
+            'password' => Hash::make($donnees['password']),
+            'doit_changer_mot_de_passe' => false,
+            'email_verified_at' => now(),
+        ])->save();
+        $compte->tokens()->delete();
+        DB::table('password_reset_tokens')->where('email', $cle)->delete();
+
+        AuditLogger::log($compte, 'activation_compte', 'users', $compte->id, 'Compte administrateur activé par e-mail.');
+
+        return response()->json(['message' => 'Compte activé. Vous pouvez vous connecter avec votre nouveau mot de passe.']);
+    }
+
     public function reinitialiser(Request $request): JsonResponse
     {
         $donnees = $request->validate([

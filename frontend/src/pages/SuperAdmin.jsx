@@ -94,7 +94,7 @@ const EMPTY_FORM = {
   prefixe_matricule: '', plan: 'standard', pays: 'TD',
   // Démarrage : essai gratuit ou premier paiement (même circuit qu'un renouvellement, avec facture).
   demarrage: 'essai', jours_essai: 30, duree_mois: 12, montant: '', mode_paiement: 'mobile_money', reference: '',
-  admin_name: '', admin_email: '', admin_password: '',
+  admin_name: '', admin_email: '',
 }
 
 const MODES_PAIEMENT = [
@@ -190,6 +190,16 @@ export default function SuperAdmin({ section = 'ecoles' }) {
       toast.success('Mot de passe réinitialisé.')
     } catch (err) {
       toast.error(err.message || 'Réinitialisation impossible.')
+    }
+  }
+
+  const renvoyerActivation = async (etab) => {
+    if (!window.confirm(`Renvoyer l’invitation d’activation aux administrateurs de « ${etab.nom} » ?`)) return
+    try {
+      const res = await client.post(`/super-admin/etablissements/${etab.id}/renvoyer-activation`)
+      toast.success(res.data.message)
+    } catch (err) {
+      toast.error(err.message || 'Envoi impossible.')
     }
   }
 
@@ -470,6 +480,7 @@ export default function SuperAdmin({ section = 'ecoles' }) {
                           <div className="cell-actions">
                             <button className="btn btn--ghost btn--sm" onClick={() => setFicheId(etab.id)}>Fiche</button>
                             <button className="btn btn--ghost btn--sm" onClick={() => relancerEcole(etab)}>Relancer</button>
+                            <button className="btn btn--ghost btn--sm" onClick={() => renvoyerActivation(etab)}>Renvoyer l’activation</button>
                             <button className="btn btn--ghost btn--sm" onClick={() => reinitialiserMotDePasse(etab)}>Mot de passe</button>
                             <button className="btn btn--ghost btn--sm" onClick={() => openEdit(etab)}>Modifier</button>
                             {etab.statut_abonnement === 'suspendu' ? (
@@ -616,10 +627,10 @@ export default function SuperAdmin({ section = 'ecoles' }) {
                 <Field label="Email de l'admin *" error={formErrors.admin_email}>
                   <Input type="email" name="admin_email" value={form.admin_email} onChange={handleChange} required={!editing} />
                 </Field>
-                <Field label="Mot de passe *" error={formErrors.admin_password}>
-                  <Input type="password" name="admin_password" value={form.admin_password} onChange={handleChange} required={!editing} />
-                </Field>
               </div>
+              <p className="field-hint" style={{ marginTop: 8 }}>
+                L’administrateur reçoit un e-mail d’activation : il choisit lui-même son mot de passe. Le lien est valable 72 heures ; vous pouvez le renvoyer depuis la liste des écoles.
+              </p>
             </>
           )}
 

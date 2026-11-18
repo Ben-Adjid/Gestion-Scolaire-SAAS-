@@ -73,6 +73,9 @@ Route::get('/pays', fn () => response()->json(
 Route::post('/mot-de-passe/oublie', [\App\Http\Controllers\Api\MotDePasseController::class, 'oublie'])
     ->middleware('throttle:5,1')
     ->withoutMiddleware(['auth:sanctum', 'subscription']);
+Route::post('/mot-de-passe/activer', [\App\Http\Controllers\Api\MotDePasseController::class, 'activer'])
+    ->middleware('throttle:10,1')
+    ->withoutMiddleware(['auth:sanctum', 'subscription']);
 Route::post('/mot-de-passe/reinitialiser', [\App\Http\Controllers\Api\MotDePasseController::class, 'reinitialiser'])
     ->middleware('throttle:10,1')
     ->withoutMiddleware(['auth:sanctum', 'subscription']);
@@ -332,6 +335,7 @@ Route::middleware(['auth:sanctum', 'subscription', 'enforce_tenant', 'reserve_pa
         Route::delete('/groupes/{groupe}', [GroupeScolaireController::class, 'destroy']);
         Route::post('/etablissements/{etablissement}/groupe', [GroupeScolaireController::class, 'lier']);
         Route::post('/etablissements/{etablissement}/relancer', [SuperAdminController::class, 'relancer']);
+        Route::post('/etablissements/{etablissement}/renvoyer-activation', [SuperAdminController::class, 'renvoyerActivation']);
         Route::post('/etablissements/{etablissement}/essai', [SuperAdminController::class, 'demarrerEssai']);
         Route::get('/paiements-abonnement/{paiement}/facture', [SuperAdminController::class, 'factureAbonnement']);
         Route::post('/etablissements/{etablissement}/reinitialiser-admin', [SuperAdminController::class, 'reinitialiserAdmin']);

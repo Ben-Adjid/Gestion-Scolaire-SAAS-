@@ -17,13 +17,16 @@ export default function Reinitialiser() {
   const token = params.get('token') || ''
   const email = params.get('email') || ''
   const incomplet = !token || !email
+  // Lien d'invitation (nouvel établissement) : même page, texte et service d'activation.
+  const activation = params.get('activation') === '1'
 
   const soumettre = async (e) => {
     e.preventDefault()
     setEnvoi(true)
     setErreur(null)
     try {
-      const res = await motDePasseApi.reinitialiser({
+      const envoyer = activation ? motDePasseApi.activer : motDePasseApi.reinitialiser
+      const res = await envoyer({
         email, token, password: nouveau, password_confirmation: confirmation,
       })
       setSucces(res.data.message)
@@ -38,8 +41,8 @@ export default function Reinitialiser() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-brand">
-          <h1>Nouveau mot de passe</h1>
-          <p>Au moins 8 caractères.</p>
+          <h1>{activation ? 'Activez votre compte' : 'Nouveau mot de passe'}</h1>
+          <p>{activation ? 'Choisissez le mot de passe de votre espace administrateur. Au moins 8 caractères.' : 'Au moins 8 caractères.'}</p>
         </div>
 
         {incomplet && <Alert>Ce lien est incomplet. Ouvrez le lien reçu par e-mail.</Alert>}

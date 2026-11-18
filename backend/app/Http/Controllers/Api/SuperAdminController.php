@@ -71,14 +71,16 @@ class SuperAdminController extends Controller
             // Compte admin de l'établissement
             'admin_name'       => 'required|string|max:255',
             'admin_email'      => 'required|email|unique:users,email',
-            'admin_password'   => 'required|string|min:8',
+            // Sans mot de passe : l'administrateur reçoit une invitation et le choisit lui-même.
+            'admin_password'   => 'nullable|string|min:8',
         ]);
+        $sansMotDePasse = blank($data['admin_password'] ?? null);
 
         $pays = $data['pays'] ?? config('pays.defaut');
         $demarrage = $data['demarrage'] ?? 'essai';
         $joursEssai = (int) ($data['jours_essai'] ?? 30);
 
-        [$etablissement] = DB::transaction(function () use ($data, $pays, $demarrage, $joursEssai, $request) {
+        [$etablissement] = DB::transaction(function () use ($data, $pays, $demarrage, $joursEssai, $request, $sansMotDePasse) {
             $etablissement = Etablissement::create([
                 'nom'               => $data['nom'],
                 'pays'              => $pays,
@@ -106,10 +108,11 @@ class SuperAdminController extends Controller
             User::withoutGlobalScopes()->create([
                 'name'              => $data['admin_name'],
                 'email'             => $data['admin_email'],
-                'password'          => Hash::make($data['admin_password']),
+                // Sans mot de passe choisi : un secret aléatoire, inconnu de tous, jusqu'à l'activation par e-mail.
+                'password'          => Hash::make($sansMotDePasse ? \Illuminate\Support\Str::random(64) : $data['admin_password']),
                 'role'              => 'admin',
                 'etablissement_id'  => $etablissement->id,
-            ])->forceFill(['doit_changer_mot_de_passe' => true])->save();
+            ])->forceFill(['doit_changer_mot_de_passe' => ! $sansMotDePasse])->save();
 
             return [$etablissement];
         });
@@ -119,12 +122,18 @@ class SuperAdminController extends Controller
             .($demarrage === 'paiement' ? 'premier paiement enregistré.' : "essai de {$joursEssai} jours."));
         $etablissement->refresh();
 
-        // Bienvenue à l'administrateur de la nouvelle école (un échec d'envoi ne bloque pas la création).
+        // Un échec d'envoi ne bloque pas la création : la relance renverra l'invitation.
         try {
-            \Illuminate\Support\Facades\Mail::to($data['admin_email'])->send(new \App\Mail\CompteCree(
-                $data['admin_name'], 'Administrateur', $etablissement->nom,
-            ));
-        } catch (\Throwable $e) {
+            if ($sansMotDePasse) {
+                app(\App\Services\ActivationAdmin::class)->envoyer(
+                    User::withoutGlobalScopes()->where('email', $data['admin_email'])->firstOrFail(), $etablissement,
+                );
+            } else {
+                \Illuminate\Support\Facades\Mail::to($data['admin_email'])->send(new \App\Mail\CompteCree(
+                    $data['admin_name'], 'Administrateur', $etablissement->nom,
+                ));
+            }
+        } catch (Throwable $e) {
             // Le compte est créé même si l'e-mail n'a pas pu partir.
         }
 
@@ -446,6 +455,30 @@ class SuperAdminController extends Controller
     }
 
     /** Relance par e-mail des administrateurs d'une école (abonnement proche de l'échéance ou expiré). */
+    /** Renvoie l'invitation d'activation aux administrateurs de l'école. */
+    public function renvoyerActivation(Request $request, Etablissement $etablissement): JsonResponse
+    {
+        $admins = User::withoutGlobalScopes()->where('etablissement_id', $etablissement->id)->where('role', 'admin')->get();
+        if ($admins->isEmpty()) {
+            return response()->json(['message' => "Cet établissement n'a aucun administrateur."], 422);
+        }
+
+        $service = app(\App\Services\ActivationAdmin::class);
+        $envoyes = 0;
+        foreach ($admins as $admin) {
+            try {
+                $service->envoyer($admin, $etablissement);
+                $envoyes++;
+            } catch (\Throwable $e) {
+                // Un échec n'interrompt pas les autres destinataires.
+            }
+        }
+
+        \App\Services\AuditLogger::log($request->user(), 'renvoi_activation', 'etablissements', $etablissement->id, "Invitation d'activation renvoyée ({$envoyes}).");
+
+        return response()->json(['message' => "Invitation d'activation envoyée à {$envoyes} administrateur(s)."]);
+    }
+
     public function relancer(Request $request, Etablissement $etablissement): JsonResponse
     {
         $admins = User::withoutGlobalScopes()

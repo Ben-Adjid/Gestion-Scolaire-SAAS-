@@ -9,6 +9,7 @@ export const authApi = {
 export const motDePasseApi = {
   oublie: (email) => client.post('/mot-de-passe/oublie', { email }),
   reinitialiser: (data) => client.post('/mot-de-passe/reinitialiser', data),
+  activer: (data) => client.post('/mot-de-passe/activer', data),
   changer: (data) => client.post('/mot-de-passe/changer', data),
 }
 
