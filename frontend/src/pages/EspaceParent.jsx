@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { espaceParentApi } from '../api/endpoints'
+import { espaceParentApi, paiementEnLigneApi } from '../api/endpoints'
+import PaiementFrais from '../components/PaiementFrais'
 import Spinner from '../components/Spinner'
 import EmptyState from '../components/EmptyState'
 import Alert from '../components/Alert'
@@ -43,6 +44,22 @@ export default function EspaceParent() {
   const [demande, setDemande] = useState(null)
   const [motif, setMotif] = useState('')
   const [envoi, setEnvoi] = useState(false)
+  const [fraisAPayer, setFraisAPayer] = useState(null)
+
+  // Retour de la page du prestataire (?paiement=REF) : statut revérifié par le serveur.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const reference = params.get('paiement')
+    if (!reference) return
+    window.history.replaceState(null, '', window.location.pathname)
+    paiementEnLigneApi.suivre(reference)
+      .then((r) => {
+        if (r.data.statut === 'reussi') toast.success('Paiement reçu, merci. Il apparaît dans les frais de votre enfant.')
+        else if (r.data.statut === 'echoue') toast.error('Le paiement n’a pas abouti : aucun montant n’a été enregistré.')
+        else toast.success('Paiement en cours de confirmation par le prestataire : il apparaîtra dans quelques minutes.')
+      })
+      .catch(() => {})
+  }, [toast])
 
   useEffect(() => {
     espaceParentApi.enfants()
@@ -291,7 +308,7 @@ export default function EspaceParent() {
                       : (
                         <div className="table-wrapper">
                           <table className="table">
-                            <thead><tr><th>Frais</th><th>Montant</th><th>Payé</th><th>Reste</th></tr></thead>
+                            <thead><tr><th>Frais</th><th>Montant</th><th>Payé</th><th>Reste</th>{resume.paiement_en_ligne && <th />}</tr></thead>
                             <tbody>
                               {resume.frais.map((f, i) => (
                                 <tr key={i}>
@@ -299,6 +316,13 @@ export default function EspaceParent() {
                                   <td>{montant(f.montant)}</td>
                                   <td>{montant(f.paye)}</td>
                                   <td className={Number(f.reste) > 0 ? 'cell-danger' : ''}>{montant(f.reste)}</td>
+                                  {resume.paiement_en_ligne && (
+                                    <td className="cell-actions">
+                                      {Number(f.reste) > 0 && f.id && (
+                                        <button type="button" className="btn btn--primary btn--sm" onClick={() => setFraisAPayer(f)}>Payer en ligne</button>
+                                      )}
+                                    </td>
+                                  )}
                                 </tr>
                               ))}
                             </tbody>
@@ -314,6 +338,14 @@ export default function EspaceParent() {
       )}
 
       <FilResume limite={4} titre="Actualités de l’école" />
+
+      {fraisAPayer && (
+        <PaiementFrais
+          frais={fraisAPayer}
+          onClose={() => setFraisAPayer(null)}
+          onPaye={() => espaceParentApi.resume(enfantId).then((res) => setResume(res.data))}
+        />
+      )}
 
       <Modal
         open={Boolean(demande)}

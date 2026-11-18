@@ -84,9 +84,12 @@ class ParentController extends Controller
                     'matiere' => $e->matiere?->nom,
                 ]),
             'frais' => $frais->map(fn ($f) => [
+                'id' => $f->id,
                 'libelle' => $f->libelle, 'annee_scolaire' => $f->annee_scolaire,
                 'montant' => $f->montant_total, 'paye' => $f->montant_paye, 'reste' => $f->reste,
             ]),
+            // Prestataire de paiement en ligne de l'école (null : paiement au guichet uniquement).
+            'paiement_en_ligne' => app(\App\Services\PaiementEnLigne::class)->prestataire($etudiant->etablissement),
         ]);
     }
 

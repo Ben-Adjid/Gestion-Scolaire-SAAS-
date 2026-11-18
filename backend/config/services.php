@@ -36,6 +36,11 @@ return [
         'secret' => env('PAIEMENT_WEBHOOK_SECRET'),
     ],
 
+    // Paiement en ligne des frais scolaires : le mode simulation n'est jamais disponible en production.
+    'paiement_en_ligne' => [
+        'simulation' => env('PAIEMENT_EN_LIGNE_SIMULATION', true),
+    ],
+
     // WhatsApp Cloud API (Meta) pour les relances d'abonnement.
     'whatsapp' => [
         'token' => env('WHATSAPP_TOKEN'),

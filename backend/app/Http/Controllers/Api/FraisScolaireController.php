@@ -236,7 +236,7 @@ class FraisScolaireController extends Controller
         $etablissement = Etablissement::find($paiement->etablissement_id);
         $identite = \App\Services\IdentiteEtablissement::pour($etablissement);
         $montant = fn ($v) => number_format((float) $v, 0, ',', ' ');
-        $modes = ['especes' => 'Espèces', 'virement' => 'Virement', 'cheque' => 'Chèque', 'mobile_money' => 'Mobile money', 'carte' => 'Carte bancaire'];
+        $modes = ['especes' => 'Espèces', 'virement' => 'Virement', 'cheque' => 'Chèque', 'mobile_money' => 'Mobile money', 'carte' => 'Carte bancaire', 'en_ligne' => 'Paiement en ligne'];
 
         // Gabarit Blade : échappement automatique, mise en page aux couleurs de l'école.
         $html = view('documents.recu-paiement', [

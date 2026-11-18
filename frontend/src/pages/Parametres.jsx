@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
 import { etablissementApi, paysApi, reglesApi } from '../api/endpoints'
+import PaiementEnLigneCarte from '../components/PaiementEnLigneCarte'
+import { useAuth } from '../context/AuthContext'
+import { aLaFonctionnalite } from '../utils/plans'
 import PageHeader from '../components/PageHeader'
 import Spinner from '../components/Spinner'
 import Alert from '../components/Alert'
@@ -30,6 +33,7 @@ const ETAB_FIELDS = [
 export default function Parametres() {
   const toast = useToast()
   const { etablissement, setEtablissement } = useEtablissement()
+  const { user } = useAuth()
 
   const [form, setForm] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -320,6 +324,7 @@ export default function Parametres() {
           </div>
         </div>
       </div>
+      {user?.role === 'admin' && aLaFonctionnalite(user, etablissement, 'paiement_en_ligne') && <PaiementEnLigneCarte />}
     </div>
   )
 }
