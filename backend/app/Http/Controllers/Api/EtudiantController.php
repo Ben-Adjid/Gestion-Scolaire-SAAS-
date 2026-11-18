@@ -17,7 +17,7 @@ class EtudiantController extends Controller
         $this->middleware('auth:sanctum');
         $this->middleware('role:admin,censeur,proviseur,secretaire')->except(['index', 'show', 'lookup', 'doublons']);
         $this->middleware('role:admin,proviseur,censeur,secretaire')->only(['doublons']);
-        $this->middleware('role:admin,proviseur,censeur,cpe,enseignant,secretaire,gestionnaire,agent_comptable')->only(['index', 'show', 'lookup']);
+        $this->middleware('role:admin,proviseur,censeur,cpe,surveillant,enseignant,secretaire,gestionnaire,agent_comptable')->only(['index', 'show', 'lookup']);
     }
 
     public function index(Request $request)

@@ -60,7 +60,7 @@ class DashboardController extends Controller
 
         $genres = (clone $etudiants)->selectRaw('genre, COUNT(*) as total')->groupBy('genre')->pluck('total', 'genre');
 
-        $voitEleves = $user->hasAnyRole(['admin', 'proviseur', 'censeur', 'cpe', 'enseignant', 'secretaire', 'gestionnaire', 'agent_comptable']);
+        $voitEleves = $user->hasAnyRole(['admin', 'proviseur', 'censeur', 'cpe', 'surveillant', 'enseignant', 'secretaire', 'gestionnaire', 'agent_comptable']);
 
         $topEleves = [];
         if ($voitEleves && ! TeacherScope::isTeacherRole($user)) {

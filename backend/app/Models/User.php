@@ -15,7 +15,7 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, BelongsToTenant;
 
-    public const ROLES = ['super_admin', 'admin', 'proviseur', 'censeur', 'cpe', 'enseignant', 'secretaire', 'gestionnaire', 'agent_comptable', 'responsable_it', 'parent'];
+    public const ROLES = ['super_admin', 'admin', 'proviseur', 'censeur', 'cpe', 'surveillant', 'enseignant', 'secretaire', 'gestionnaire', 'agent_comptable', 'responsable_it', 'parent'];
 
     /**
      * The attributes that are mass assignable.
@@ -28,6 +28,7 @@ class User extends Authenticatable
         'password',
         'role',
         'enseignant_id',
+        'affectation',
         'telephone',
         'etablissement_id',
     ];
@@ -49,7 +50,32 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'preferences_notifications' => 'array',
     ];
+
+    /** Événements et canaux qu'un parent peut choisir de recevoir (tout est activé par défaut). */
+    public const EVENEMENTS_NOTIFIES = ['absence', 'retard', 'convocation', 'sortie'];
+
+    public const CANAUX_NOTIFICATION = ['email', 'whatsapp'];
+
+    /** Préférences complètes : chaque événement × canal, avec « vrai » par défaut. */
+    public function preferencesNotifications(): array
+    {
+        $enregistrees = $this->preferences_notifications ?? [];
+        $resultat = [];
+        foreach (self::EVENEMENTS_NOTIFIES as $evenement) {
+            foreach (self::CANAUX_NOTIFICATION as $canal) {
+                $resultat[$evenement][$canal] = (bool) ($enregistrees[$evenement][$canal] ?? true);
+            }
+        }
+
+        return $resultat;
+    }
+
+    public function accepteNotification(string $evenement, string $canal): bool
+    {
+        return $this->preferencesNotifications()[$evenement][$canal] ?? true;
+    }
 
     public function enseignant(): BelongsTo
     {

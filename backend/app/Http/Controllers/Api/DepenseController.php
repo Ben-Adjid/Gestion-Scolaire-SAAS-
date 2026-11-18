@@ -26,7 +26,8 @@ class DepenseController extends Controller
         ])->all();
         $lignes[] = ['Total', '', '', round((float) $depenses->sum('montant'), 2)];
 
-        $contenu = \App\Services\Xlsx::generer('Dépenses', ['Date', 'Catégorie', 'Libellé', 'Montant (FCFA)'], $lignes, ['Montant (FCFA)'],
+        $m = auth()->user()?->etablissement?->monnaie() ?? 'FCFA';
+        $contenu = \App\Services\Xlsx::generer('Dépenses', ['Date', 'Catégorie', 'Libellé', "Montant ($m)"], $lignes, ["Montant ($m)"],
             implode(' — ', array_filter([auth()->user()?->etablissement?->nom, 'Dépenses'])));
 
         return response($contenu, 200, [

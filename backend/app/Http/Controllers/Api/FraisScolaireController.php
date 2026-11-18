@@ -155,7 +155,7 @@ class FraisScolaireController extends Controller
         $frais->loadMissing('paiements');
         if ($validated['montant'] > $frais->reste) {
             return response()->json([
-                'message' => "Le montant dépasse le reste à payer ({$frais->reste} FCFA).",
+                'message' => "Le montant dépasse le reste à payer ({$frais->reste} ".($request->user()->etablissement?->monnaie() ?? 'FCFA').").",
             ], 422);
         }
 

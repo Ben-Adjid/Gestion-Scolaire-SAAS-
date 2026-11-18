@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
  */
 class ReserveAuxParents
 {
-    private const AUTORISEES = ['api/me', 'api/logout', 'api/etablissement', 'api/parent/*', 'api/justifications', 'api/messages', 'api/messages/*', 'api/cahier-texte', 'api/actualites', 'api/calendrier', 'api/2fa/*'];
+    private const AUTORISEES = ['api/me', 'api/logout', 'api/etablissement', 'api/parent/*', 'api/justifications', 'api/messages', 'api/messages/*', 'api/cahier-texte', 'api/actualites', 'api/calendrier', 'api/2fa/*', 'api/mot-de-passe/*'];
 
     public function handle(Request $request, Closure $next)
     {

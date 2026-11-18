@@ -10,6 +10,7 @@ import { downloadTablePdf, downloadElementPdf } from '../utils/pdf'
 import { mentionColor } from '../utils/format'
 import { MEDALS, TRIMESTRES } from '../utils/constants'
 import { useEtablissement } from '../context/EtablissementContext'
+import { paysCourant } from '../utils/pays'
 
 export default function Palmares() {
   const { etablissement } = useEtablissement()
@@ -250,7 +251,7 @@ export default function Palmares() {
               </div>
 
               <div className="attestation-head">
-                <div className="attestation-country">RÉPUBLIQUE DU TCHAD</div>
+                <div className="attestation-country">{paysCourant().republique}</div>
                 <div className="attestation-motto">Unité — Travail — Progrès</div>
                 <div className="attestation-ministry">{etablissement.ministere}</div>
                 <div className="attestation-school-wrap">

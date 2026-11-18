@@ -22,8 +22,8 @@ class AbsenceController extends Controller
     {
         $this->notifications = $notifications;
         $this->alerts = $alerts;
-        $this->middleware('role:enseignant,cpe,admin,censeur')->only(['store']);
-        $this->middleware('role:admin,proviseur,censeur,cpe,enseignant,secretaire')->only(['index', 'stats']);
+        $this->middleware('role:enseignant,cpe,surveillant,admin,censeur')->only(['store']);
+        $this->middleware('role:admin,proviseur,censeur,cpe,surveillant,enseignant,secretaire')->only(['index', 'stats']);
         $this->middleware('role:admin,censeur,cpe')->only(['update', 'destroy']);
     }
 

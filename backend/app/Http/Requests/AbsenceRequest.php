@@ -8,7 +8,7 @@ class AbsenceRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return auth()->check() && in_array(auth()->user()->role, ['enseignant', 'cpe', 'admin', 'censeur']);
+        return auth()->check() && in_array(auth()->user()->role, ['enseignant', 'cpe', 'surveillant', 'admin', 'censeur']);
     }
 
     public function rules(): array

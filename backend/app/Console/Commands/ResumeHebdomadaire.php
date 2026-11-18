@@ -42,7 +42,7 @@ class ResumeHebdomadaire extends Command
                     ->where('created_at', '>=', $debut)->count(),
                 'Nouveaux élèves inscrits' => Etudiant::withoutGlobalScopes()->where('etablissement_id', $etab->id)
                     ->where('created_at', '>=', $debut)->count(),
-                'Montant encaissé (FCFA)' => (int) DB::table('paiements')
+                'Montant encaissé ('.$etab->monnaie().')' => (int) DB::table('paiements')
                     ->where('etablissement_id', $etab->id)->where('statut', 'completed')
                     ->where('created_at', '>=', $debut)->sum('montant'),
             ];

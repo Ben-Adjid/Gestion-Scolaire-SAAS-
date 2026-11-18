@@ -16,7 +16,7 @@ class AppelController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('role:admin,censeur,cpe,enseignant')->except(['confirmer', 'enAttente']);
+        $this->middleware('role:admin,censeur,cpe,surveillant,enseignant')->except(['confirmer', 'enAttente']);
         $this->middleware('role:admin,censeur,cpe')->only(['confirmer', 'enAttente']);
     }
 

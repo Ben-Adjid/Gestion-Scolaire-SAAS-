@@ -91,9 +91,18 @@ const statutBadge = (statut) => STATUTS.find(s => s.value === statut) || STATUTS
 const EMPTY_FORM = {
   nom: '', responsable: '', telephone: '', adresse: '',
   annee_scolaire: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
-  prefixe_matricule: '', plan: 'standard', abonnement_fin: '',
+  prefixe_matricule: '', plan: 'standard', pays: 'TD',
+  // Démarrage : essai gratuit ou premier paiement (même circuit qu'un renouvellement, avec facture).
+  demarrage: 'essai', jours_essai: 30, duree_mois: 12, montant: '', mode_paiement: 'mobile_money', reference: '',
   admin_name: '', admin_email: '', admin_password: '',
 }
+
+const MODES_PAIEMENT = [
+  { value: 'mobile_money', label: 'Mobile money' },
+  { value: 'virement', label: 'Virement' },
+  { value: 'especes', label: 'Espèces' },
+  { value: 'carte', label: 'Carte bancaire' },
+]
 
 // Une section par entrée du menu « Plateforme SaaS ».
 const TITRES = {
@@ -133,6 +142,12 @@ export default function SuperAdmin({ section = 'ecoles' }) {
   const [form, setForm] = useState(EMPTY_FORM)
   const [formErrors, setFormErrors] = useState({})
   const [saving, setSaving] = useState(false)
+  const [listePays, setListePays] = useState([])
+  const [correction, setCorrection] = useState(false)
+
+  useEffect(() => {
+    client.get('/pays').then((res) => setListePays(res.data)).catch(() => {})
+  }, [])
 
   const fetchAll = async () => {
     setLoading(true)
@@ -207,10 +222,12 @@ export default function SuperAdmin({ section = 'ecoles' }) {
       telephone: e.telephone || '', adresse: e.adresse || '',
       annee_scolaire: e.annee_scolaire || '',
       prefixe_matricule: e.prefixe_matricule || '', plan: e.plan || 'standard',
+      pays: e.pays || 'TD',
       statut_abonnement: e.statut_abonnement || 'actif',
       abonnement_fin: e.abonnement_fin || '',
-      admin_name: '', admin_email: '', admin_password: '',
+      motif_correction: '',
     })
+    setCorrection(false)
     setFormErrors({})
     setModalOpen(true)
   }
@@ -227,17 +244,25 @@ export default function SuperAdmin({ section = 'ecoles' }) {
     setFormErrors({})
     try {
       if (editing) {
-        await client.put(`/super-admin/etablissements/${editing.id}`, form)
+        // Sans « correction », formule, statut et échéance ne sont pas envoyés : ils passent par Renouveler / Essai / Suspendre.
+        const { plan, statut_abonnement, abonnement_fin, motif_correction, ...infos } = form
+        await client.put(`/super-admin/etablissements/${editing.id}`, correction
+          ? { ...infos, plan, statut_abonnement, abonnement_fin: abonnement_fin || null, motif_correction }
+          : infos)
         toast.success(`"${form.nom}" mis à jour.`)
       } else {
-        await client.post('/super-admin/etablissements', form)
+        const { demarrage, jours_essai, duree_mois, montant, mode_paiement, reference, ...base } = form
+        await client.post('/super-admin/etablissements', demarrage === 'paiement'
+          ? { ...base, demarrage, duree_mois: Number(duree_mois), montant: Number(montant), mode_paiement, reference: reference || null }
+          : { ...base, demarrage, jours_essai: Number(jours_essai) })
         toast.success(`Établissement "${form.nom}" créé avec succès !`)
       }
       setModalOpen(false)
       fetchAll()
     } catch (err) {
-      if (err.response?.data?.errors) {
-        setFormErrors(err.response.data.errors)
+      const erreurs = err.errors || err.response?.data?.errors
+      if (erreurs) {
+        setFormErrors(erreurs)
       } else {
         toast.error(err.message)
       }
@@ -497,22 +522,89 @@ export default function SuperAdmin({ section = 'ecoles' }) {
             <Field label="Année scolaire" error={formErrors.annee_scolaire}>
               <Input name="annee_scolaire" value={form.annee_scolaire} onChange={handleChange} />
             </Field>
-            <Field label="Plan d'abonnement *" error={formErrors.plan}>
-              <Select name="plan" value={form.plan} onChange={handleChange}>
-                {PLANS.map(p => <option key={p.value} value={p.value}>{p.label} — {p.price.toLocaleString('fr-FR')} FCFA / mois</option>)}
+            <Field label="Pays" error={formErrors.pays}>
+              <Select name="pays" value={form.pays} onChange={handleChange}>
+                {listePays.map((p) => <option key={p.code} value={p.code}>{p.nom} ({p.monnaie})</option>)}
               </Select>
             </Field>
-            <Field label="Fin d'abonnement" error={formErrors.abonnement_fin}>
-              <Input type="date" name="abonnement_fin" value={form.abonnement_fin} onChange={handleChange} />
-            </Field>
-            {editing && (
-              <Field label="Statut de l'abonnement" error={formErrors.statut_abonnement}>
-                <Select name="statut_abonnement" value={form.statut_abonnement} onChange={handleChange}>
-                  {STATUTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                </Select>
-              </Field>
-            )}
           </div>
+
+          {!editing ? (
+            <>
+              <h3 className="form-titre-section">Formule et démarrage</h3>
+              <div className="form-grid">
+                <Field label="Formule *" error={formErrors.plan}>
+                  <Select name="plan" value={form.plan} onChange={handleChange}>
+                    {PLANS.map(p => <option key={p.value} value={p.value}>{p.label} — {p.price.toLocaleString('fr-FR')} FCFA / mois</option>)}
+                  </Select>
+                </Field>
+                <Field label="Démarrage" hint="Un paiement crée la période et la facture, comme « Renouveler ».">
+                  <Select name="demarrage" value={form.demarrage} onChange={handleChange}>
+                    <option value="essai">Essai gratuit</option>
+                    <option value="paiement">Premier paiement reçu</option>
+                  </Select>
+                </Field>
+                {form.demarrage === 'essai' ? (
+                  <Field label="Durée de l’essai (jours)" error={formErrors.jours_essai}>
+                    <Input type="number" min="1" max="90" name="jours_essai" value={form.jours_essai} onChange={handleChange} />
+                  </Field>
+                ) : (
+                  <>
+                    <Field label="Durée payée (mois) *" error={formErrors.duree_mois}>
+                      <Input
+                        type="number" min="1" max="24" name="duree_mois" value={form.duree_mois}
+                        onChange={(e) => setForm((p) => ({ ...p, duree_mois: e.target.value, montant: String((Number(e.target.value) || 0) * (PLANS.find((p) => p.value === form.plan)?.price || 0)) }))}
+                      />
+                    </Field>
+                    <Field label="Montant reçu (FCFA) *" error={formErrors.montant} hint={`Tarif : ${((Number(form.duree_mois) || 0) * (PLANS.find((p) => p.value === form.plan)?.price || 0)).toLocaleString('fr-FR')} FCFA`}>
+                      <Input type="number" min="0" name="montant" value={form.montant} onChange={handleChange} />
+                    </Field>
+                    <Field label="Mode de paiement *" error={formErrors.mode_paiement}>
+                      <Select name="mode_paiement" value={form.mode_paiement} onChange={handleChange}>
+                        {MODES_PAIEMENT.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+                      </Select>
+                    </Field>
+                    <Field label="Référence" error={formErrors.reference}>
+                      <Input name="reference" value={form.reference} onChange={handleChange} placeholder="N° de transaction" />
+                    </Field>
+                  </>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <h3 className="form-titre-section">Abonnement</h3>
+              <p className="field-hint" style={{ marginBottom: 12 }}>
+                Formule {planBadge(editing.plan).label}, {statutBadge(editing.statut_abonnement).label.toLowerCase()}
+                {editing.abonnement_fin ? ` jusqu’au ${editing.abonnement_fin.split('-').reverse().join('/')}` : ''}.
+                Pour prolonger ou changer de formule, utilisez « Renouveler » (paiement et facture) ou « Essai » dans Abonnements.
+              </p>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+                <input type="checkbox" checked={correction} onChange={(e) => setCorrection(e.target.checked)} />
+                Corriger une erreur de saisie (sans paiement, avec motif au journal)
+              </label>
+              {correction && (
+                <div className="form-grid">
+                  <Field label="Formule" error={formErrors.plan}>
+                    <Select name="plan" value={form.plan} onChange={handleChange}>
+                      {PLANS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                    </Select>
+                  </Field>
+                  <Field label="Statut" error={formErrors.statut_abonnement}>
+                    <Select name="statut_abonnement" value={form.statut_abonnement} onChange={handleChange}>
+                      {STATUTS.map(st => <option key={st.value} value={st.value}>{st.label}</option>)}
+                    </Select>
+                  </Field>
+                  <Field label="Échéance" error={formErrors.abonnement_fin}>
+                    <Input type="date" name="abonnement_fin" value={form.abonnement_fin} onChange={handleChange} />
+                  </Field>
+                  <Field label="Motif de la correction *" error={formErrors.motif_correction}>
+                    <Input name="motif_correction" value={form.motif_correction} onChange={handleChange} placeholder="Ex : date saisie par erreur" />
+                  </Field>
+                </div>
+              )}
+            </>
+          )}
 
           {!editing && (
             <>

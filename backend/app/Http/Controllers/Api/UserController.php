@@ -28,7 +28,7 @@ class UserController extends Controller
     public function index(Request $request): JsonResponse
     {
         $users = User::query()
-            ->with(['enseignant:id,nom,prenom', 'permissions:id,code'])
+            ->with(['enseignant:id,nom,prenom,specialite', 'enseignant.matieres:id,nom', 'permissions:id,code'])
             ->when($request->query('search'), function ($query, $search) {
                 $query->where('name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%");
@@ -55,9 +55,19 @@ class UserController extends Controller
         $data['password'] = Hash::make($data['password']);
         $this->verifierFormulePermissions($request, $data['permissions'] ?? []);
         $codesPermissions = $data['permissions'] ?? [];
-        unset($data['permissions']);
+        $matieres = $data['matieres'] ?? [];
+        $specialite = $data['specialite'] ?? null;
+        unset($data['permissions'], $data['matieres'], $data['specialite']);
+        $data = $this->normaliserAffectation($data);
 
-        $user = User::create($data);
+        $user = \Illuminate\Support\Facades\DB::transaction(function () use ($data, $matieres, $specialite) {
+            // Un seul formulaire : un compte enseignant sans fiche existante crée sa fiche (matières, code de pointage).
+            if ($data['role'] === 'enseignant') {
+                $data['enseignant_id'] = $this->ficheEnseignant($data, $matieres, $specialite)->id;
+            }
+
+            return User::create($data);
+        });
         // Le mot de passe choisi par l'administrateur est temporaire : l'utilisateur le changera à sa première connexion.
         $user->forceFill(['doit_changer_mot_de_passe' => true])->save();
         $this->synchroniserPermissions($user, $codesPermissions);
@@ -79,6 +89,54 @@ class UserController extends Controller
             'message' => 'Utilisateur créé avec succès.',
             'user' => $user->load('enseignant:id,nom,prenom'),
         ], 201);
+    }
+
+    /** Rôles pour lesquels on précise une affectation (général, cycle, bâtiment). */
+    public const ROLES_AFFECTES = ['proviseur', 'censeur', 'cpe', 'surveillant'];
+
+    private function normaliserAffectation(array $data): array
+    {
+        $affectation = trim((string) ($data['affectation'] ?? ''));
+        $data['affectation'] = in_array($data['role'] ?? null, self::ROLES_AFFECTES, true)
+            ? ($affectation !== '' ? $affectation : 'Général')
+            : null;
+        if (($data['role'] ?? null) !== 'enseignant') {
+            $data['enseignant_id'] = null;
+        }
+
+        return $data;
+    }
+
+    /**
+     * Fiche enseignant liée au compte : celle choisie, sinon une fiche créée à partir du nom du compte.
+     * Les matières ne sont remplacées que si le formulaire les envoie.
+     */
+    private function ficheEnseignant(array $data, array $matieres, ?string $specialite, bool $remplacerMatieres = true): \App\Models\Enseignant
+    {
+        $fiche = ! empty($data['enseignant_id'])
+            ? \App\Models\Enseignant::findOrFail($data['enseignant_id'])
+            : null;
+
+        if (! $fiche) {
+            $morceaux = preg_split('/\s+/u', trim($data['name']), 2);
+            $fiche = \App\Models\Enseignant::create([
+                'prenom' => $morceaux[0],
+                'nom' => $morceaux[1] ?? $morceaux[0],
+                'email' => $data['email'],
+                'telephone' => $data['telephone'] ?? null,
+                'specialite' => $specialite,
+            ]);
+        } elseif ($specialite !== null && $specialite !== '') {
+            $fiche->update(['specialite' => $specialite]);
+        }
+
+        if ($remplacerMatieres) {
+            // Seules les matières de l'établissement sont retenues (portée du locataire).
+            $ids = \App\Models\Matiere::whereIn('id', $matieres)->pluck('id');
+            $fiche->matieres()->sync($ids);
+        }
+
+        return $fiche;
     }
 
     /** Catalogue des permissions, regroupées par module, pour construire le formulaire. */
@@ -142,9 +200,19 @@ class UserController extends Controller
         if (array_key_exists('permissions', $data)) {
             $this->synchroniserPermissions($user, $data['permissions'] ?? []);
         }
-        unset($data['permissions']);
+        $matieres = $data['matieres'] ?? null;
+        $specialite = $data['specialite'] ?? null;
+        unset($data['permissions'], $data['matieres'], $data['specialite']);
+        $data = $this->normaliserAffectation($data);
 
-        $user->update($data);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($user, $data, $matieres, $specialite) {
+            if ($data['role'] === 'enseignant') {
+                $data['enseignant_id'] = $data['enseignant_id'] ?? $user->enseignant_id;
+                $fiche = $this->ficheEnseignant($data, $matieres ?? [], $specialite, $matieres !== null);
+                $data['enseignant_id'] = $fiche->id;
+            }
+            $user->update($data);
+        });
 
         return response()->json([
             'message' => 'Utilisateur mis à jour avec succès.',

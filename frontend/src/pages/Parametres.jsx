@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { etablissementApi, reglesApi } from '../api/endpoints'
+import { etablissementApi, paysApi, reglesApi } from '../api/endpoints'
 import PageHeader from '../components/PageHeader'
 import Spinner from '../components/Spinner'
 import Alert from '../components/Alert'
 import { useToast } from '../components/Toast'
 import { useEtablissement } from '../context/EtablissementContext'
-import { Field, Input } from '../components/Field'
+import { Field, Input, Select } from '../components/Field'
 
 const FIELDS = [
   { key: 'note_max', label: 'Note maximale (barème)', hint: 'Ex. 20', step: '0.5' },
@@ -40,6 +40,7 @@ export default function Parametres() {
   const [savingEtab, setSavingEtab] = useState(false)
   const [logoFile, setLogoFile] = useState(null)
   const [logoPreview, setLogoPreview] = useState(null)
+  const [listePays, setListePays] = useState([])
 
   useEffect(() => {
     reglesApi
@@ -47,6 +48,8 @@ export default function Parametres() {
       .then((res) => setForm(res.data))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
+
+    paysApi.liste().then((res) => setListePays(res.data)).catch(() => {})
 
     etablissementApi
       .show()
@@ -66,6 +69,19 @@ export default function Parametres() {
     const { name, value } = e.target
     setEtabForm((prev) => ({ ...prev, [name]: value }))
   }
+
+  // Changer de pays met à jour la devise nationale si l'école gardait celle de l'ancien pays (ou aucune).
+  const changerPays = (e) => {
+    const code = e.target.value
+    setEtabForm((prev) => {
+      const ancien = listePays.find((p) => p.code === (prev?.pays || 'TD'))
+      const nouveau = listePays.find((p) => p.code === code)
+      const garderDevise = prev?.devise && prev.devise !== ancien?.devise
+      return { ...prev, pays: code, devise: garderDevise ? prev.devise : nouveau?.devise ?? prev?.devise }
+    })
+  }
+
+  const paysChoisi = listePays.find((p) => p.code === (etabForm?.pays || 'TD'))
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -145,6 +161,15 @@ export default function Parametres() {
         <div className="card-body">
           <form id="etablissement-form" onSubmit={handleEtabSubmit} noValidate>
             <div className="form-grid">
+              <Field
+                label="Pays"
+                htmlFor="etab-pays"
+                hint={paysChoisi ? `En-tête : ${paysChoisi.republique} · Monnaie : ${paysChoisi.monnaie} · Indicatif : ${paysChoisi.indicatif}` : undefined}
+              >
+                <Select id="etab-pays" name="pays" value={etabForm?.pays || 'TD'} onChange={changerPays}>
+                  {listePays.map((p) => <option key={p.code} value={p.code}>{p.nom}</option>)}
+                </Select>
+              </Field>
               {ETAB_FIELDS.map((field) => (
                 <Field
                   key={field.key}
@@ -206,12 +231,12 @@ export default function Parametres() {
               Afficher le rang de l’élève sur le bulletin
             </label>
 
-            <Field label="Logo de l'établissement" htmlFor="etab-logo" hint="PNG, JPG ou SVG (2 Mo max)">
+            <Field label="Logo de l'établissement" htmlFor="etab-logo" hint="PNG, JPG ou WebP (2 Mo max)">
               <div className="logo-upload-row">
                 <Input
                   id="etab-logo"
                   type="file"
-                  accept="image/*"
+                  accept="image/png,image/jpeg,image/webp"
                   onChange={(e) => {
                     const file = e.target.files?.[0]
                     if (!file) return

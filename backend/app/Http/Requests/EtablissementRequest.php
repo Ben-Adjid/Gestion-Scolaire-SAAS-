@@ -15,6 +15,7 @@ class EtablissementRequest extends FormRequest
     {
         return [
             'nom' => ['required', 'string', 'max:255'],
+            'pays' => ['nullable', \Illuminate\Validation\Rule::in(array_keys(config('pays.liste')))],
             'devise' => ['nullable', 'string', 'max:255'],
             'ministere' => ['nullable', 'string', 'max:255'],
             'adresse' => ['nullable', 'string', 'max:255'],
@@ -32,7 +33,7 @@ class EtablissementRequest extends FormRequest
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'rayon_pointage' => ['nullable', 'integer', 'between:20,1000'],
-            'logo' => ['nullable', 'image', 'mimes:png,jpg,jpeg,svg', 'max:2048'],
+            'logo' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
         ];
     }
 }

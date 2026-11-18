@@ -17,7 +17,7 @@ class EnseignantController extends Controller
 
     public function index(Request $request)
     {
-        $query = Enseignant::query();
+        $query = Enseignant::query()->with('matieres:id,nom');
 
         if (! $request->user()->hasAnyRole(['admin', 'proviseur', 'censeur'])) {
             $query->select(['id', 'nom', 'prenom', 'specialite', 'etablissement_id']);
@@ -33,7 +33,7 @@ class EnseignantController extends Controller
                 ->orWhere('prenom', 'like', "%{$search}%"));
         }
 
-        return response()->json($query->paginate(20));
+        return response()->json($query->orderBy('nom')->paginate(min(1000, max(1, (int) $request->query('per_page', 20)))));
     }
 
     public function store(Request $request)

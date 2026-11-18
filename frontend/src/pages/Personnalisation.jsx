@@ -5,8 +5,21 @@ import Alert from '../components/Alert'
 import { Field, Input } from '../components/Field'
 import { useToast } from '../components/Toast'
 import { useEtablissement } from '../context/EtablissementContext'
+import { paysCourant } from '../utils/pays'
 
 const COULEUR_PAR_DEFAUT = '#1F5C4A'
+
+// Palettes prêtes à l'emploi, toutes lisibles avec un texte blanc (contraste suffisant sur les boutons).
+const PALETTES = [
+  { nom: 'Forêt', couleur: '#1F5C4A' },
+  { nom: 'Sahel', couleur: '#9A4B12' },
+  { nom: 'Terre cuite', couleur: '#B23A2B' },
+  { nom: 'Océan', couleur: '#0F5E8C' },
+  { nom: 'Nuit', couleur: '#26306B' },
+  { nom: 'Savane', couleur: '#6B5A12' },
+  { nom: 'Prune', couleur: '#6A2C5E' },
+  { nom: 'Ardoise', couleur: '#334155' },
+]
 
 // Formule Entreprise : couleur d'accent de l'espace de l'établissement.
 export default function Personnalisation() {
@@ -48,6 +61,24 @@ export default function Personnalisation() {
       <div className="personnalisation-grille">
         <form className="card form-carte" onSubmit={enregistrer}>
           <div className="card-body">
+            <section className="form-section">
+              <h3>Thème</h3>
+              <p className="form-section-aide">Choisissez une palette, ou les couleurs de votre pays. Vous pouvez ensuite ajuster la teinte.</p>
+              <div className="palettes">
+                {[...(etablissement.pays_info?.couleur ? [{ nom: `Couleurs nationales (${paysCourant().nom})`, couleur: etablissement.pays_info.couleur }] : []), ...PALETTES].map((p) => (
+                  <button
+                    key={p.nom}
+                    type="button"
+                    className={`palette ${couleur.toLowerCase() === p.couleur.toLowerCase() ? 'palette--active' : ''}`}
+                    onClick={() => setCouleur(p.couleur)}
+                  >
+                    <span className="palette-pastille" style={{ background: p.couleur }} />
+                    {p.nom}
+                  </button>
+                ))}
+              </div>
+            </section>
+
             <section className="form-section">
               <h3>Couleur principale</h3>
               <p className="form-section-aide">Utilisée pour les boutons, la barre latérale et les accents.</p>

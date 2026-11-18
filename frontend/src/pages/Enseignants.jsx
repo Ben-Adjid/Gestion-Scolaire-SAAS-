@@ -9,6 +9,7 @@ import Pagination from '../components/Pagination'
 import Alert from '../components/Alert'
 import { useToast } from '../components/Toast'
 import { Field, Input } from '../components/Field'
+import { exempleTelephone } from '../utils/pays'
 
 const EMPTY_FORM = { nom: '', prenom: '', email: '', telephone: '', specialite: '' }
 
@@ -287,7 +288,7 @@ export default function Enseignants() {
                 name="telephone"
                 value={form.telephone}
                 onChange={handleChange}
-                placeholder="Ex : +235 66 00 00 00"
+                placeholder={exempleTelephone()}
                 error={formErrors.telephone?.[0]}
               />
             </Field>

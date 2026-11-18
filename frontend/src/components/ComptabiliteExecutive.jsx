@@ -4,12 +4,13 @@ import { useAuth } from '../context/AuthContext'
 import { useEtablissement } from '../context/EtablissementContext'
 import { aLaFonctionnalite } from '../utils/plans'
 import { PremiumBadge } from './PlanGate'
+import { formatMontant } from '../utils/pays'
 
 const ROLES_COMPTABILITE = ['admin', 'proviseur', 'gestionnaire', 'agent_comptable']
 const RAYON = 54
 const CIRCONFERENCE = 2 * Math.PI * RAYON
 
-const montant = (v) => `${Math.round(Number(v) || 0).toLocaleString('fr-FR')} FCFA`
+const montant = formatMontant
 
 // Anneau SVG : part de la somme encaissée par rapport au total facturé.
 function Anneau({ taux }) {

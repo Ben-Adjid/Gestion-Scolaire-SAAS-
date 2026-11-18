@@ -60,6 +60,23 @@ class NotificationParentsService
         );
     }
 
+    /** Sortie anticipée effectuée : le parent signataire et les autres parents sont prévenus de l'heure réelle. */
+    public function notifierSortie(Etudiant $etudiant, \App\Models\AutorisationSortie $autorisation): void
+    {
+        $heure = $autorisation->sortie_le?->format('H:i') ?? substr((string) $autorisation->heure_sortie, 0, 5);
+        $date = $autorisation->date_sortie->format('d/m/Y');
+        $avec = $autorisation->accompagnant ? " avec {$autorisation->accompagnant}" : '';
+
+        $this->diffuser(
+            $etudiant,
+            'sortie',
+            $autorisation->id,
+            "Sortie de {$etudiant->prenom} {$etudiant->nom}",
+            "Bonjour, {$etudiant->prenom} {$etudiant->nom} a quitté l'établissement le {$date} à {$heure}{$avec}, "
+                ."conformément à l'autorisation signée.",
+        );
+    }
+
     private function diffuser(Etudiant $etudiant, string $type, int $reference, string $sujet, string $texte): void
     {
         if (! in_array('notifications_parents', $etudiant->etablissement?->fonctionnalites() ?? [], true)) {
@@ -72,7 +89,8 @@ class NotificationParentsService
             ->get();
 
         foreach ($parents as $parent) {
-            if ($parent->email) {
+            // Notifications à la carte : le parent choisit, par événement, l'e-mail et/ou WhatsApp.
+            if ($parent->email && $parent->accepteNotification($type, 'email')) {
                 $this->envoyer($etudiant, $parent, 'email', $type, $reference, function () use ($parent, $sujet, $texte) {
                     Mail::to($parent->email)->queue(new NotificationParent($sujet, $texte));
 
@@ -80,7 +98,7 @@ class NotificationParentsService
                 });
             }
 
-            if ($parent->telephone) {
+            if ($parent->telephone && $parent->accepteNotification($type, 'whatsapp')) {
                 $this->envoyer($etudiant, $parent, 'whatsapp', $type, $reference,
                     fn () => $this->whatsapp->envoyer($parent->telephone, $texte));
             }

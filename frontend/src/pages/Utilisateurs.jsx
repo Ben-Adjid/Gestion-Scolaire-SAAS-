@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { enseignantsApi, usersApi } from '../api/endpoints'
+import { enseignantsApi, matieresApi, usersApi } from '../api/endpoints'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -14,12 +14,20 @@ import PermissionsGrille from '../components/PermissionsGrille'
 import { useAuth } from '../context/AuthContext'
 import { useEtablissement } from '../context/EtablissementContext'
 import { aLaFonctionnalite } from '../utils/plans'
+import { exempleTelephone } from '../utils/pays'
 
 const ROLES = Object.entries(ROLE_LABELS)
   .filter(([value]) => value !== 'super_admin')
   .map(([value, label]) => ({ value, label }))
 
-const EMPTY_FORM = { name: '', email: '', telephone: '', role: 'enseignant', password: '', enseignant_id: '', permissions: [] }
+const EMPTY_FORM = {
+  name: '', email: '', telephone: '', role: 'enseignant', password: '', enseignant_id: '', permissions: [],
+  matieres: [], specialite: '', affectation: 'Général',
+}
+
+// Direction et vie scolaire : on précise où la personne intervient.
+const ROLES_AFFECTES = ['proviseur', 'censeur', 'cpe', 'surveillant']
+const AFFECTATIONS = ['Général', 'Collège', 'Lycée', 'Bâtiment A', 'Bâtiment B', 'Bâtiment C']
 
 function roleLabel(value) {
   return ROLES.find((r) => r.value === value)?.label || value
@@ -52,6 +60,7 @@ export default function Utilisateurs() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [enseignants, setEnseignants] = useState([])
+  const [matieres, setMatieres] = useState([])
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -64,6 +73,7 @@ export default function Utilisateurs() {
 
   useEffect(() => {
     enseignantsApi.list({ per_page: 1000 }).then((res) => setEnseignants(res.data.data)).catch(() => {})
+    matieresApi.list({ per_page: 1000 }).then((res) => setMatieres(res.data.data ?? res.data)).catch(() => {})
   }, [])
 
   const fetchData = useCallback(async () => {
@@ -102,6 +112,9 @@ export default function Utilisateurs() {
       enseignant_id: item.enseignant_id || '',
       telephone: item.telephone || '',
       permissions: (item.permissions || []).map((p) => p.code),
+      matieres: (item.enseignant?.matieres || []).map((m) => m.id),
+      specialite: item.enseignant?.specialite || '',
+      affectation: item.affectation || 'Général',
     })
     setFormErrors({})
     setModalOpen(true)
@@ -119,7 +132,14 @@ export default function Utilisateurs() {
     setFormErrors({})
     const payload = { ...form }
     if (editing && !payload.password) delete payload.password
-    if (payload.role !== 'enseignant') payload.enseignant_id = null
+    if (payload.role !== 'enseignant') {
+      payload.enseignant_id = null
+      delete payload.matieres
+      delete payload.specialite
+    } else {
+      payload.enseignant_id = payload.enseignant_id || null
+    }
+    if (!ROLES_AFFECTES.includes(payload.role)) payload.affectation = null
 
     try {
       if (editing) {
@@ -136,6 +156,24 @@ export default function Utilisateurs() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const basculerMatiere = (id) =>
+    setForm((prev) => ({
+      ...prev,
+      matieres: prev.matieres.includes(id) ? prev.matieres.filter((m) => m !== id) : [...prev.matieres, id],
+    }))
+
+  // Fiche enseignant existante choisie : on reprend ses matières pour les afficher cochées.
+  const choisirFiche = (e) => {
+    const id = e.target.value
+    const fiche = enseignants.find((x) => String(x.id) === id)
+    setForm((prev) => ({
+      ...prev,
+      enseignant_id: id,
+      matieres: fiche?.matieres ? fiche.matieres.map((m) => m.id) : prev.matieres,
+      specialite: fiche?.specialite ?? prev.specialite,
+    }))
   }
 
   const confirmDelete = async () => {
@@ -190,7 +228,7 @@ export default function Utilisateurs() {
                     <th>Nom</th>
                     <th>Email</th>
                     <th>Rôle</th>
-                    <th>Enseignant lié</th>
+                    <th>Affectation / fiche</th>
                     <th className="th-actions">Actions</th>
                   </tr>
                 </thead>
@@ -204,8 +242,8 @@ export default function Utilisateurs() {
                       </td>
                       <td className="cell-muted">
                         {item.enseignant
-                          ? `${item.enseignant.prenom} ${item.enseignant.nom}`
-                          : '—'}
+                          ? [`${item.enseignant.prenom} ${item.enseignant.nom}`, (item.enseignant.matieres || []).map((m) => m.nom).join(', ')].filter(Boolean).join(' · ')
+                          : item.affectation || '—'}
                       </td>
                       <td className="cell-actions">
                         {gereCompte(item) ? (
@@ -256,7 +294,7 @@ export default function Utilisateurs() {
             error={formErrors.telephone?.[0]}
             hint="Pour les comptes parents : reçoivent les absences et convocations sur WhatsApp."
           >
-            <Input id="telephone" name="telephone" value={form.telephone} onChange={handleChange} placeholder="+235 66 00 00 00" error={formErrors.telephone?.[0]} />
+            <Input id="telephone" name="telephone" value={form.telephone} onChange={handleChange} placeholder={exempleTelephone()} error={formErrors.telephone?.[0]} />
           </Field>
           <div className="form-grid">
             <Field label="Rôle" htmlFor="role" required error={formErrors.role?.[0]}>
@@ -293,16 +331,57 @@ export default function Utilisateurs() {
             />
           )}
           {form.role === 'enseignant' && (
-            <Field label="Associer à un enseignant" htmlFor="enseignant_id" error={formErrors.enseignant_id?.[0]}>
-              <Select id="enseignant_id" name="enseignant_id" value={form.enseignant_id} onChange={handleChange}>
-                <option value="">— Aucun —</option>
-                {enseignants.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.prenom} {e.nom}
-                  </option>
+            <>
+              <h3 className="form-titre-section">Enseignement</h3>
+              <Field
+                label="Fiche enseignant"
+                htmlFor="enseignant_id"
+                error={formErrors.enseignant_id?.[0]}
+                hint="Par défaut la fiche est créée avec le compte (code de pointage compris)."
+              >
+                <Select id="enseignant_id" name="enseignant_id" value={form.enseignant_id} onChange={choisirFiche}>
+                  <option value="">Créer la fiche avec ce compte</option>
+                  {enseignants.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      Lier à : {e.prenom} {e.nom}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Spécialité" htmlFor="specialite" error={formErrors.specialite?.[0]}>
+                <Input id="specialite" name="specialite" value={form.specialite} onChange={handleChange} placeholder="Ex : Mathématiques-Physique" />
+              </Field>
+              <Field label="Matières enseignées" error={formErrors.matieres?.[0]} hint={matieres.length === 0 ? 'Créez d’abord les matières dans le menu Matières.' : undefined}>
+                <div className="choix-puces">
+                  {matieres.map((m) => (
+                    <label key={m.id} className={`choix-puce ${form.matieres.includes(m.id) ? 'choix-puce--actif' : ''}`}>
+                      <input type="checkbox" checked={form.matieres.includes(m.id)} onChange={() => basculerMatiere(m.id)} />
+                      {m.nom}
+                    </label>
+                  ))}
+                </div>
+              </Field>
+            </>
+          )}
+          {ROLES_AFFECTES.includes(form.role) && (
+            <>
+              <h3 className="form-titre-section">Affectation</h3>
+              <Field
+                label={form.role === 'censeur' ? 'Censeur de quel périmètre ?' : 'Périmètre'}
+                htmlFor="affectation"
+                error={formErrors.affectation?.[0]}
+                hint="« Général » : tout l’établissement. Sinon un cycle ou un bâtiment ; un autre libellé est possible."
+              >
+                <Input id="affectation" name="affectation" value={form.affectation} onChange={handleChange} placeholder="Général" />
+              </Field>
+              <div className="choix-puces">
+                {AFFECTATIONS.map((a) => (
+                  <button key={a} type="button" className={`choix-puce ${form.affectation === a ? 'choix-puce--actif' : ''}`} onClick={() => setForm((prev) => ({ ...prev, affectation: a }))}>
+                    {a}
+                  </button>
                 ))}
-              </Select>
-            </Field>
+              </div>
+            </>
           )}
         </form>
       </Modal>

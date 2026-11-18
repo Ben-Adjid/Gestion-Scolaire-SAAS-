@@ -26,6 +26,8 @@ class IdentiteEtablissement
             'logo' => self::logo($etablissement),
             'couleur' => $couleur,
             'teinte' => self::teinte($couleur),
+            'monnaie' => $etablissement?->monnaie() ?? 'FCFA',
+            'republique' => $etablissement?->pays_info['republique'] ?? null,
         ];
     }
 

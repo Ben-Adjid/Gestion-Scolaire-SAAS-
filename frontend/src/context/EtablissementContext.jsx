@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { etablissementApi } from '../api/endpoints'
 import { useAuth } from './AuthContext'
+import { definirPays } from '../utils/pays'
 
 const EtablissementContext = createContext(null)
 
@@ -39,6 +40,9 @@ export function EtablissementProvider({ children }) {
       actif = false
     }
   }, [userId])
+
+  // Pays de l'école : monnaie, en-tête des bulletins, indicatif. Défini avant le rendu des pages enfants.
+  definirPays(etablissement.pays_info)
 
   // Marque blanche : l'onglet du navigateur porte le nom de l'établissement, sans aucune mention de la plateforme.
   useEffect(() => {

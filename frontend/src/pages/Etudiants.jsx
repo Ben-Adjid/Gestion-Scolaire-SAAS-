@@ -14,6 +14,7 @@ import { Field, Input, Select } from '../components/Field'
 import { downloadCsv } from '../utils/csv'
 import { downloadTablePdf } from '../utils/pdf'
 import { formatDate } from '../utils/format'
+import { exempleTelephone } from '../utils/pays'
 
 const EMPTY_FORM = {
   matricule: '',
@@ -529,7 +530,7 @@ export default function Etudiants() {
               <Input id="email" type="email" name="email" value={form.email} onChange={handleChange} placeholder="etudiant@ecole.com" error={formErrors.email?.[0]} />
             </Field>
             <Field label="Téléphone" htmlFor="telephone" error={formErrors.telephone?.[0]} hint="Optionnel">
-              <Input id="telephone" name="telephone" value={form.telephone} onChange={handleChange} placeholder="Ex : +235 66 00 00 00" error={formErrors.telephone?.[0]} />
+              <Input id="telephone" name="telephone" value={form.telephone} onChange={handleChange} placeholder={exempleTelephone()} error={formErrors.telephone?.[0]} />
             </Field>
           </div>
           <Field label="Adresse" htmlFor="adresse" error={formErrors.adresse?.[0]} hint="Optionnel">

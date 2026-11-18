@@ -3,8 +3,9 @@ import client from '../api/client'
 import PageHeader from '../components/PageHeader'
 import Spinner from '../components/Spinner'
 import Alert from '../components/Alert'
+import { formatMontant } from '../utils/pays'
 
-const montant = (v) => `${Math.round(Number(v) || 0).toLocaleString('fr-FR')} FCFA`
+const montant = formatMontant
 
 // Multi-sites : synthèse consolidée du groupe scolaire (totaux agrégés par site).
 export default function Groupe() {

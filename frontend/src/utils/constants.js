@@ -20,6 +20,7 @@ export const ROLE_LABELS = {
   proviseur: 'Proviseur',
   censeur: 'Censeur',
   cpe: 'CPE (Conseiller Pédagogique)',
+  surveillant: 'Surveillant',
   enseignant: 'Enseignant',
   secretaire: 'Secrétaire',
   gestionnaire: 'Gestionnaire',

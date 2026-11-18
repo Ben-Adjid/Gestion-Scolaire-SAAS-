@@ -9,6 +9,7 @@ import { useToast } from '../components/Toast'
 import { Field, Textarea } from '../components/Field'
 import { useAuth } from '../context/AuthContext'
 import FilResume from '../components/FilResume'
+import { formatMontant } from '../utils/pays'
 
 const ONGLETS = [
   { id: 'presences', label: 'Présences', icone: '' },
@@ -19,7 +20,7 @@ const ONGLETS = [
   { id: 'frais', label: 'Frais', icone: '' },
 ]
 
-const montant = (v) => `${Number(v || 0).toLocaleString('fr-FR')} FCFA`
+const montant = formatMontant
 
 const initiales = (en) => `${en.prenom?.[0] || ''}${en.nom?.[0] || ''}`.toUpperCase()
 

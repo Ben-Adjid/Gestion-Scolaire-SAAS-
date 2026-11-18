@@ -10,7 +10,7 @@ class Etablissement extends Model
 {
     use HasFactory;
 
-    protected $appends = ['plan_label', 'fonctionnalites', 'jours_restants'];
+    protected $appends = ['plan_label', 'fonctionnalites', 'jours_restants', 'pays_info'];
 
     /**
      * Jours avant la fin de l'abonnement (négatif si dépassé, null si pas de date).
@@ -24,6 +24,7 @@ class Etablissement extends Model
     protected $fillable = [
         'groupe_scolaire_id',
         'nom',
+        'pays',
         'devise',
         'ministere',
         'adresse',
@@ -103,6 +104,26 @@ class Etablissement extends Model
         return array_key_exists((string) $this->plan, config('plans.plans', []))
             ? (string) $this->plan
             : config('plans.defaut');
+    }
+
+    /** Code pays reconnu (catalogue config/pays.php), sinon le pays par défaut. */
+    public function paysCode(): string
+    {
+        return array_key_exists((string) $this->pays, config('pays.liste', []))
+            ? (string) $this->pays
+            : config('pays.defaut');
+    }
+
+    /** En-tête officiel, devise nationale, monnaie et indicatif du pays de l'école. */
+    public function getPaysInfoAttribute(): array
+    {
+        return ['code' => $this->paysCode()] + config('pays.liste.'.$this->paysCode(), []);
+    }
+
+    /** Symbole de la monnaie de l'école (FCFA, GNF, DH…), pour les montants des élèves et des dépenses. */
+    public function monnaie(): string
+    {
+        return $this->pays_info['monnaie'] ?? 'FCFA';
     }
 
     /** Fonctionnalités incluses dans le plan de l'établissement. */

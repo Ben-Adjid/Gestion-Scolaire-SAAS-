@@ -213,6 +213,33 @@ export const espaceParentApi = {
   justifier: (etudiantId, absenceId, motif) =>
     client.post(`/parent/enfants/${etudiantId}/absences/${absenceId}/justifier`, { motif }),
   mesJustifications: () => client.get('/parent/justifications'),
+  preferences: () => client.get('/parent/preferences-notifications'),
+  enregistrerPreferences: (preferences) => client.put('/parent/preferences-notifications', { preferences }),
+  sorties: () => client.get('/parent/sorties'),
+  signerSortie: (etudiantId, data) => client.post(`/parent/enfants/${etudiantId}/sorties`, data),
+  annulerSortie: (id) => client.post(`/parent/sorties/${id}/annuler`),
+  documentSortie: (id) => client.get(`/parent/sorties/${id}/document`, { responseType: 'blob' }),
+}
+
+// Pays pris en charge (en-tête officiel, monnaie, indicatif) : référentiel public.
+export const paysApi = {
+  liste: () => client.get('/pays'),
+}
+
+// Autorisations de sortie signées par les parents : traitement par la vie scolaire.
+export const autorisationsSortieApi = {
+  liste: (params) => client.get('/autorisations-sortie', { params }),
+  decider: (id, decision, commentaire) => client.post(`/autorisations-sortie/${id}/decision`, { decision, commentaire }),
+  sortie: (id) => client.post(`/autorisations-sortie/${id}/sortie`),
+  document: (id) => client.get(`/autorisations-sortie/${id}/document`, { responseType: 'blob' }),
+}
+
+/** Ouvre un document HTML (reçu, autorisation…) dans un nouvel onglet, prêt à imprimer. */
+export function ouvrirDocument(blob) {
+  const url = URL.createObjectURL(new Blob([blob], { type: 'text/html' }))
+  const fenetre = window.open(url, '_blank', 'noopener')
+  setTimeout(() => URL.revokeObjectURL(url), 60000)
+  return fenetre
 }
 
 // Décision du CPE / direction sur une demande de justification.

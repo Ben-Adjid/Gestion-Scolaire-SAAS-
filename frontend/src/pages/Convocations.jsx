@@ -9,6 +9,7 @@ import { useToast } from '../components/Toast'
 import { useEtablissement } from '../context/EtablissementContext'
 import { Field, Input, Select } from '../components/Field'
 import { formatDate } from '../utils/format'
+import { paysCourant } from '../utils/pays'
 
 export default function Convocations() {
   const toast = useToast()
@@ -208,7 +209,7 @@ export default function Convocations() {
         {doc && (
           <div className="convocation-doc" id="convocation-print">
             <div className="convocation-doc-head">
-              <div className="attestation-country">RÉPUBLIQUE DU TCHAD</div>
+              <div className="attestation-country">{paysCourant().republique}</div>
               <div className="attestation-motto">{etablissement.devise || 'Unité — Travail — Progrès'}</div>
               <div className="attestation-ministry">{etablissement.ministere}</div>
               <div className="attestation-school">{etablissement.nom}</div>

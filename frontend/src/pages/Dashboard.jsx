@@ -14,7 +14,7 @@ import { useEtablissement } from '../context/EtablissementContext'
 import { mentionColor } from '../utils/format'
 import { aLaFonctionnalite } from '../utils/plans'
 
-const TOUS_SAUF_IT = ['admin', 'proviseur', 'censeur', 'cpe', 'enseignant', 'secretaire', 'gestionnaire', 'agent_comptable']
+const TOUS_SAUF_IT = ['admin', 'proviseur', 'censeur', 'cpe', 'surveillant', 'enseignant', 'secretaire', 'gestionnaire', 'agent_comptable']
 
 const INDICATEURS = [
   { key: 'etudiants', label: 'Élèves', to: '/etudiants', roles: TOUS_SAUF_IT },
@@ -52,6 +52,11 @@ const ACTIONS_PAR_ROLE = {
     { to: '/eleves-difficulte', label: 'Élèves en difficulté' },
     { to: '/bulletins', label: 'Bulletins' },
   ],
+  surveillant: [
+    { to: '/appels', label: 'Faire l’appel', principal: true },
+    { to: '/presences', label: 'Absences' },
+    { to: '/emploi-du-temps', label: 'Emploi du temps' },
+  ],
   enseignant: [
     { to: '/notes', label: 'Saisir des notes', principal: true },
     { to: '/emploi-du-temps', label: 'Emploi du temps' },
@@ -82,6 +87,7 @@ const SOUS_TITRE_PAR_ROLE = {
   proviseur: 'Vue de l’établissement',
   censeur: 'Résultats et discipline',
   cpe: 'Vie scolaire',
+  surveillant: 'Surveillance et appels',
   enseignant: 'Vos classes et vos notes',
   secretaire: 'Inscriptions et dossiers',
   gestionnaire: 'Finances scolaires',

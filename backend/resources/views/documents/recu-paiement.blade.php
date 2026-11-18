@@ -73,13 +73,13 @@
 
         <div class="montant">
             <span>Montant reçu</span>
-            <strong>{{ $montant }} FCFA</strong>
+            <strong>{{ $montant }} {{ $ecole['monnaie'] }}</strong>
         </div>
 
         <table>
-            <tr><td>Total des frais</td><td class="valeur">{{ $frais['total'] }} FCFA</td></tr>
-            <tr><td>Déjà payé (ce paiement compris)</td><td class="valeur">{{ $frais['paye'] }} FCFA</td></tr>
-            <tr class="reste"><td>Reste à payer</td><td class="valeur">{{ $frais['reste'] }} FCFA</td></tr>
+            <tr><td>Total des frais</td><td class="valeur">{{ $frais['total'] }} {{ $ecole['monnaie'] }}</td></tr>
+            <tr><td>Déjà payé (ce paiement compris)</td><td class="valeur">{{ $frais['paye'] }} {{ $ecole['monnaie'] }}</td></tr>
+            <tr class="reste"><td>Reste à payer</td><td class="valeur">{{ $frais['reste'] }} {{ $ecole['monnaie'] }}</td></tr>
         </table>
 
         <div class="signatures">

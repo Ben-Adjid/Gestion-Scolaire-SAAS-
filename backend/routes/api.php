@@ -64,6 +64,11 @@ Route::post('/login', [AuthController::class, 'login'])
     ->middleware('throttle:5,1')
     ->withoutMiddleware(['auth:sanctum', 'subscription']);
 
+// Référentiel public des pays pris en charge (aucune donnée personnelle).
+Route::get('/pays', fn () => response()->json(
+    collect(config('pays.liste'))->map(fn ($p, $code) => ['code' => $code] + $p)->values()
+))->middleware('throttle:60,1')->withoutMiddleware(['auth:sanctum', 'subscription']);
+
 // Mot de passe oublié : la réponse est identique, que le compte existe ou non.
 Route::post('/mot-de-passe/oublie', [\App\Http\Controllers\Api\MotDePasseController::class, 'oublie'])
     ->middleware('throttle:5,1')
@@ -201,7 +206,7 @@ Route::middleware(['auth:sanctum', 'subscription', 'enforce_tenant', 'reserve_pa
 
     // Planning des examens (VIP) : consultation pour l'équipe, saisie pour la direction.
     Route::get('/planning-examens', [ExamenPlanningController::class, 'index'])
-        ->middleware(['plan:planning_examens', 'role:admin,proviseur,censeur,cpe,enseignant,secretaire']);
+        ->middleware(['plan:planning_examens', 'role:admin,proviseur,censeur,cpe,surveillant,enseignant,secretaire']);
     Route::post('/planning-examens', [ExamenPlanningController::class, 'store'])
         ->middleware(['plan:planning_examens', 'role:admin,proviseur,censeur']);
     Route::delete('/planning-examens/{epreuve}', [ExamenPlanningController::class, 'destroy'])
@@ -243,6 +248,19 @@ Route::middleware(['auth:sanctum', 'subscription', 'enforce_tenant', 'reserve_pa
         Route::get('/enfants/{etudiant}/resume', [ParentController::class, 'resume']);
         Route::post('/enfants/{etudiant}/absences/{absence}/justifier', [ParentController::class, 'justifier']);
         Route::get('/justifications', [ParentController::class, 'mesJustifications']);
+        // Notifications à la carte et autorisations de sortie signées.
+        Route::get('/preferences-notifications', [\App\Http\Controllers\Api\AutorisationSortieController::class, 'preferences']);
+        Route::put('/preferences-notifications', [\App\Http\Controllers\Api\AutorisationSortieController::class, 'enregistrerPreferences']);
+        Route::get('/sorties', [\App\Http\Controllers\Api\AutorisationSortieController::class, 'mesSorties']);
+        Route::post('/enfants/{etudiant}/sorties', [\App\Http\Controllers\Api\AutorisationSortieController::class, 'signer'])->middleware('throttle:20,1');
+        Route::post('/sorties/{autorisation}/annuler', [\App\Http\Controllers\Api\AutorisationSortieController::class, 'annuler'])->whereNumber('autorisation');
+        Route::get('/sorties/{autorisation}/document', [\App\Http\Controllers\Api\AutorisationSortieController::class, 'document'])->whereNumber('autorisation');
+    });
+    Route::prefix('autorisations-sortie')->middleware('plan:espace_parent')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\AutorisationSortieController::class, 'index']);
+        Route::post('/{autorisation}/decision', [\App\Http\Controllers\Api\AutorisationSortieController::class, 'decider'])->whereNumber('autorisation');
+        Route::post('/{autorisation}/sortie', [\App\Http\Controllers\Api\AutorisationSortieController::class, 'marquerSortie'])->whereNumber('autorisation');
+        Route::get('/{autorisation}/document', [\App\Http\Controllers\Api\AutorisationSortieController::class, 'document'])->whereNumber('autorisation');
     });
     Route::post('/etudiants/{etudiant}/parents/{parent}', [ParentController::class, 'lier'])->middleware('role:admin,secretaire');
     Route::delete('/etudiants/{etudiant}/parents/{parent}', [ParentController::class, 'delier'])->middleware('role:admin,secretaire');

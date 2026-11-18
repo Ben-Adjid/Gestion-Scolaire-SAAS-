@@ -41,7 +41,7 @@ class SuperAdminController extends Controller
         return response()->json($this->formatEtablissement($etablissement) + [
             'sante' => \App\Services\ScoreSante::pour($etablissement),
             'administrateurs' => User::withoutGlobalScopes()->where('etablissement_id', $etablissement->id)->where('role', 'admin')->orderBy('id')->get(['id', 'name', 'email'])->values(),
-            'groupe' => $etablissement->groupe_scolaire_id ? AppModelsGroupeScolaire::find($etablissement->groupe_scolaire_id)?->nom : null,
+            'groupe' => $etablissement->groupe_scolaire_id ? \App\Models\GroupeScolaire::find($etablissement->groupe_scolaire_id)?->nom : null,
         ]);
     }
 
@@ -50,6 +50,7 @@ class SuperAdminController extends Controller
     {
         $data = $request->validate([
             'nom'              => 'required|string|max:255',
+            'pays'             => ['nullable', Rule::in(array_keys(config('pays.liste')))],
             'devise'           => 'nullable|string|max:255',
             'ministere'        => 'nullable|string|max:255',
             'adresse'          => 'nullable|string|max:500',
@@ -59,17 +60,29 @@ class SuperAdminController extends Controller
             'responsable'      => 'nullable|string|max:255',
             // Plan et abonnement
             'plan'             => ['required', Rule::in(array_keys(config('plans.plans')))],
-            'abonnement_fin'   => 'nullable|date',
+            // Démarrage : essai gratuit (par défaut) ou premier paiement enregistré, comme un renouvellement.
+            // Plus de date de fin saisie à la main : toute période payée laisse une trace de paiement et une facture.
+            'demarrage'        => ['nullable', Rule::in(['essai', 'paiement'])],
+            'jours_essai'      => 'nullable|integer|min:1|max:90',
+            'duree_mois'       => 'required_if:demarrage,paiement|nullable|integer|min:1|max:24',
+            'montant'          => 'required_if:demarrage,paiement|nullable|integer|min:0',
+            'mode_paiement'    => 'required_if:demarrage,paiement|nullable|in:virement,especes,mobile_money,carte',
+            'reference'        => 'nullable|string|max:100',
             // Compte admin de l'établissement
             'admin_name'       => 'required|string|max:255',
             'admin_email'      => 'required|email|unique:users,email',
             'admin_password'   => 'required|string|min:8',
         ]);
 
-        [$etablissement] = DB::transaction(function () use ($data) {
+        $pays = $data['pays'] ?? config('pays.defaut');
+        $demarrage = $data['demarrage'] ?? 'essai';
+        $joursEssai = (int) ($data['jours_essai'] ?? 30);
+
+        [$etablissement] = DB::transaction(function () use ($data, $pays, $demarrage, $joursEssai, $request) {
             $etablissement = Etablissement::create([
                 'nom'               => $data['nom'],
-                'devise'            => $data['devise'] ?? 'Unité — Travail — Progrès',
+                'pays'              => $pays,
+                'devise'            => $data['devise'] ?? config("pays.liste.{$pays}.devise"),
                 'ministere'         => $data['ministere'] ?? null,
                 'adresse'           => $data['adresse'] ?? null,
                 'telephone'         => $data['telephone'] ?? null,
@@ -77,9 +90,18 @@ class SuperAdminController extends Controller
                 'prefixe_matricule' => strtoupper($data['prefixe_matricule'] ?? 'SCH'),
                 'responsable'       => $data['responsable'] ?? null,
                 'plan'              => $data['plan'],
-                'statut_abonnement' => 'actif',
-                'abonnement_fin'    => $data['abonnement_fin'] ?? null,
+                'statut_abonnement' => 'essai',
+                'abonnement_fin'    => now()->addDays($joursEssai)->toDateString(),
             ]);
+
+            if ($demarrage === 'paiement') {
+                // Même circuit qu'un renouvellement : paiement enregistré, période calculée, facture disponible.
+                $etablissement->forceFill(['abonnement_fin' => null])->save();
+                app(\App\Services\AbonnementService::class)->renouveler(
+                    $etablissement, $data['plan'], (int) $data['duree_mois'], (int) $data['montant'],
+                    $data['mode_paiement'], $data['reference'] ?? null, $request->user(),
+                );
+            }
 
             User::withoutGlobalScopes()->create([
                 'name'              => $data['admin_name'],
@@ -93,7 +115,9 @@ class SuperAdminController extends Controller
         });
 
         \App\Services\AuditLogger::log($request->user(), 'creation_etablissement', 'etablissements', $etablissement->id,
-            "Établissement « {$etablissement->nom} » créé, formule {$data['plan']}.");
+            "Établissement « {$etablissement->nom} » créé, formule {$data['plan']}, "
+            .($demarrage === 'paiement' ? 'premier paiement enregistré.' : "essai de {$joursEssai} jours."));
+        $etablissement->refresh();
 
         // Bienvenue à l'administrateur de la nouvelle école (un échec d'envoi ne bloque pas la création).
         try {
@@ -115,6 +139,7 @@ class SuperAdminController extends Controller
     {
         $data = $request->validate([
             'nom'               => 'sometimes|string|max:255',
+            'pays'              => ['nullable', Rule::in(array_keys(config('pays.liste')))],
             'devise'            => 'nullable|string|max:255',
             'ministere'         => 'nullable|string|max:255',
             'adresse'           => 'nullable|string|max:500',
@@ -125,7 +150,29 @@ class SuperAdminController extends Controller
             'plan'              => ['nullable', Rule::in(array_keys(config('plans.plans')))],
             'statut_abonnement' => ['nullable', Rule::in(['actif', 'suspendu', 'expire', 'essai'])],
             'abonnement_fin'    => 'nullable|date',
+            'motif_correction'  => 'nullable|string|max:255',
         ]);
+
+        // Formule, statut et échéance se changent par « Renouveler », « Essai » ou « Suspendre ».
+        // Une correction directe reste possible (erreur de saisie), mais seulement avec un motif, gardé au journal.
+        $corrections = collect(['plan', 'statut_abonnement', 'abonnement_fin'])
+            ->filter(fn ($champ) => array_key_exists($champ, $data) && (string) $data[$champ] !== (string) ($champ === 'abonnement_fin'
+                ? $etablissement->abonnement_fin?->toDateString()
+                : $etablissement->{$champ}))
+            ->values();
+        if ($corrections->isNotEmpty() && blank($data['motif_correction'] ?? null)) {
+            return response()->json([
+                'message' => 'Pour changer la formule, le statut ou l’échéance sans paiement, indiquez le motif de la correction.',
+                'errors' => ['motif_correction' => ['Motif obligatoire pour une correction d’abonnement.']],
+            ], 422);
+        }
+        foreach (['plan', 'statut_abonnement', 'abonnement_fin'] as $champ) {
+            if (array_key_exists($champ, $data) && ! $corrections->contains($champ)) {
+                unset($data[$champ]);
+            }
+        }
+        $motifCorrection = $data['motif_correction'] ?? null;
+        unset($data['motif_correction']);
 
         // Le préfixe de matricule est obligatoire : un champ vide garde la valeur actuelle.
         if (array_key_exists('prefixe_matricule', $data) && blank($data['prefixe_matricule'])) {
@@ -137,7 +184,8 @@ class SuperAdminController extends Controller
         $etablissement->update($data);
 
         \App\Services\AuditLogger::log($request->user(), 'modification_etablissement', 'etablissements', $etablissement->id,
-            "Établissement « {$etablissement->nom} » modifié : ".implode(', ', array_keys($data)).'.');
+            "Établissement « {$etablissement->nom} » modifié : ".implode(', ', array_keys($data)).'.'
+            .($corrections->isNotEmpty() ? " Correction d’abonnement ({$corrections->implode(', ')}) : {$motifCorrection}." : ''));
 
         return response()->json([
             'message'       => 'Établissement mis à jour.',

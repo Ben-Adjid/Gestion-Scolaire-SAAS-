@@ -98,7 +98,8 @@ class ConformiteController extends Controller
         $type = 'relance_frais_'.$frais->id.'_'.today()->format('Ymd');
         $reste = number_format($frais->reste, 0, ',', ' ');
         $sujet = "Rappel de paiement — {$etudiant->prenom} {$etudiant->nom}";
-        $texte = "Bonjour, un solde de {$reste} FCFA reste dû pour {$etudiant->prenom} {$etudiant->nom} "
+        $monnaie = $etudiant->etablissement?->monnaie() ?? 'FCFA';
+        $texte = "Bonjour, un solde de {$reste} {$monnaie} reste dû pour {$etudiant->prenom} {$etudiant->nom} "
             ."au titre de {$frais->libelle} ({$frais->annee_scolaire}). "
             .'Merci de contacter le service de gestion pour toute question.';
         $envoyees = 0;

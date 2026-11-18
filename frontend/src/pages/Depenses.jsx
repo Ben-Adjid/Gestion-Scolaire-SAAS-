@@ -7,6 +7,7 @@ import EmptyState from '../components/EmptyState'
 import Alert from '../components/Alert'
 import { Field, Input, Select } from '../components/Field'
 import { useToast } from '../components/Toast'
+import { formatMontant, monnaie } from '../utils/pays'
 
 const CATEGORIES = {
   salaires: { libelle: 'Salaires du personnel', couleur: '#4F46E5' },
@@ -17,7 +18,7 @@ const CATEGORIES = {
 }
 
 const VIDE = { categorie: 'salaires', libelle: '', montant: '', date: new Date().toISOString().slice(0, 10) }
-const montant = (v) => `${Math.round(Number(v) || 0).toLocaleString('fr-FR')} FCFA`
+const montant = formatMontant
 
 // Camembert SVG des dépenses par catégorie.
 function Camembert({ parts, total }) {
@@ -146,7 +147,7 @@ export default function Depenses() {
               <Field label="Libellé" htmlFor="dep-lib" required>
                 <Input id="dep-lib" value={form.libelle} maxLength={150} onChange={(e) => setForm({ ...form, libelle: e.target.value })} />
               </Field>
-              <Field label="Montant (FCFA)" htmlFor="dep-mont" required>
+              <Field label={`Montant (${monnaie()})`} htmlFor="dep-mont" required>
                 <Input id="dep-mont" type="number" min={1} value={form.montant} onChange={(e) => setForm({ ...form, montant: e.target.value })} />
               </Field>
               <Field label="Date" htmlFor="dep-date" required>

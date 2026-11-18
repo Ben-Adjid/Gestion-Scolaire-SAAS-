@@ -40,6 +40,9 @@ import AccesApi from './pages/AccesApi'
 import Support from './pages/Support'
 import Donnees from './pages/Donnees'
 import Chatboard from './pages/Chatboard'
+import SortiesParent from './pages/SortiesParent'
+import NotificationsParent from './pages/NotificationsParent'
+import AutorisationsSortie from './pages/AutorisationsSortie'
 import Actualites from './pages/Actualites'
 import PlanningExamens from './pages/PlanningExamens'
 import Securite from './pages/Securite'
@@ -157,7 +160,7 @@ export default function App() {
         <Route
           path="etudiants"
           element={
-            <RoleRoute roles={['admin', 'proviseur', 'censeur', 'cpe', 'enseignant', 'secretaire', 'gestionnaire', 'agent_comptable']}>
+            <RoleRoute roles={['admin', 'proviseur', 'censeur', 'cpe', 'surveillant', 'enseignant', 'secretaire', 'gestionnaire', 'agent_comptable']}>
               <Etudiants />
             </RoleRoute>
           }
@@ -243,7 +246,7 @@ export default function App() {
         <Route
           path="emploi-du-temps"
           element={
-            <RoleRoute roles={['admin', 'proviseur', 'censeur', 'enseignant', 'cpe', 'secretaire']}>
+            <RoleRoute roles={['admin', 'proviseur', 'censeur', 'enseignant', 'cpe', 'surveillant', 'secretaire']}>
               <EmploiDuTemps />
             </RoleRoute>
           }
@@ -259,7 +262,7 @@ export default function App() {
         <Route
           path="presences"
           element={
-            <RoleRoute roles={['admin', 'proviseur', 'censeur', 'cpe', 'enseignant', 'secretaire']}>
+            <RoleRoute roles={['admin', 'proviseur', 'censeur', 'cpe', 'surveillant', 'enseignant', 'secretaire']}>
               <Presences />
             </RoleRoute>
           }
@@ -283,7 +286,7 @@ export default function App() {
         <Route
           path="messages"
           element={
-            <RoleRoute roles={['admin', 'proviseur', 'censeur', 'cpe', 'enseignant', 'secretaire', 'gestionnaire', 'agent_comptable', 'responsable_it', 'super_admin']}>
+            <RoleRoute roles={['admin', 'proviseur', 'censeur', 'cpe', 'surveillant', 'enseignant', 'secretaire', 'gestionnaire', 'agent_comptable', 'responsable_it', 'super_admin']}>
               <Messages />
             </RoleRoute>
           }
@@ -327,7 +330,7 @@ export default function App() {
         <Route
           path="appels"
           element={
-            <RoleRoute roles={['enseignant', 'admin', 'proviseur', 'censeur', 'cpe', 'secretaire']}>
+            <RoleRoute roles={['enseignant', 'admin', 'proviseur', 'censeur', 'cpe', 'surveillant', 'secretaire']}>
               <Appels />
             </RoleRoute>
           }
@@ -345,7 +348,7 @@ export default function App() {
         <Route
           path="securite"
           element={
-            <RoleRoute roles={['admin', 'proviseur', 'censeur', 'cpe', 'enseignant', 'secretaire', 'gestionnaire', 'agent_comptable', 'responsable_it', 'parent']}>
+            <RoleRoute roles={['admin', 'proviseur', 'censeur', 'cpe', 'surveillant', 'enseignant', 'secretaire', 'gestionnaire', 'agent_comptable', 'responsable_it', 'parent']}>
               <Securite />
             </RoleRoute>
           }
@@ -353,7 +356,7 @@ export default function App() {
         <Route
           path="calendrier"
           element={
-            <RoleRoute roles={['admin', 'proviseur', 'censeur', 'cpe', 'enseignant', 'secretaire', 'gestionnaire', 'agent_comptable', 'responsable_it', 'parent']}>
+            <RoleRoute roles={['admin', 'proviseur', 'censeur', 'cpe', 'surveillant', 'enseignant', 'secretaire', 'gestionnaire', 'agent_comptable', 'responsable_it', 'parent']}>
               <PlanRoute feature="calendrier_scolaire">
                 <Calendrier />
               </PlanRoute>
@@ -383,7 +386,7 @@ export default function App() {
         <Route
           path="actualites"
           element={
-            <RoleRoute roles={['admin', 'proviseur', 'censeur', 'cpe', 'enseignant', 'secretaire', 'gestionnaire', 'agent_comptable', 'responsable_it', 'parent']}>
+            <RoleRoute roles={['admin', 'proviseur', 'censeur', 'cpe', 'surveillant', 'enseignant', 'secretaire', 'gestionnaire', 'agent_comptable', 'responsable_it', 'parent']}>
               <PlanRoute feature="fil_actualite">
                 <Actualites />
               </PlanRoute>
@@ -393,9 +396,39 @@ export default function App() {
         <Route
           path="planning-examens"
           element={
-            <RoleRoute roles={['admin', 'proviseur', 'censeur', 'cpe', 'enseignant', 'secretaire']}>
+            <RoleRoute roles={['admin', 'proviseur', 'censeur', 'cpe', 'surveillant', 'enseignant', 'secretaire']}>
               <PlanRoute feature="planning_examens">
                 <PlanningExamens />
+              </PlanRoute>
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="mes-sorties"
+          element={
+            <RoleRoute roles={['parent']}>
+              <PlanRoute feature="espace_parent">
+                <SortiesParent />
+              </PlanRoute>
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="mes-notifications"
+          element={
+            <RoleRoute roles={['parent']}>
+              <PlanRoute feature="espace_parent">
+                <NotificationsParent />
+              </PlanRoute>
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="autorisations-sortie"
+          element={
+            <RoleRoute roles={['admin', 'proviseur', 'censeur', 'cpe', 'surveillant', 'secretaire']}>
+              <PlanRoute feature="espace_parent">
+                <AutorisationsSortie />
               </PlanRoute>
             </RoleRoute>
           }

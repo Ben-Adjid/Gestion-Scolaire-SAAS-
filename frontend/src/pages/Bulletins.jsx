@@ -10,11 +10,12 @@ import { useEtablissement } from '../context/EtablissementContext'
 import { mentionColor } from '../utils/format'
 import { TRIMESTRES_ANNUEL } from '../utils/constants'
 import { downloadElementPdf, downloadBulletinsPdf } from '../utils/pdf'
+import { paysCourant } from '../utils/pays'
 
 // En-tête du bulletin : identité de l'établissement connecté (jamais une école codée en dur).
 const infosEtablissement = (e) => ({
-  pays: 'RÉPUBLIQUE DU TCHAD',
-  slogan: e.devise || 'Unité — Travail — Progrès',
+  pays: paysCourant().republique,
+  slogan: e.devise || paysCourant().devise,
   ministere: e.ministere || '',
   nom: e.nom || '',
   adresse: [e.adresse, e.telephone ? `Tél : ${e.telephone}` : null].filter(Boolean).join(' — '),

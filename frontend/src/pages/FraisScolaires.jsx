@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext'
 import { FeatureButton } from '../components/PlanGate'
 import { useEtablissement } from '../context/EtablissementContext'
 import { Field, Input, Select } from '../components/Field'
+import { formatMontant, monnaie } from '../utils/pays'
 
 const MODES = [
   { value: 'especes', label: 'Espèces' },
@@ -412,7 +413,7 @@ export default function FraisScolaires() {
           <ul className="top-list">
             {paiementsRecus.map((p) => (
               <li key={p.id} className="top-item">
-                <span className="top-name">{p.date_paiement} — {Number(p.montant).toLocaleString('fr-FR')} FCFA ({p.mode_paiement})</span>
+                <span className="top-name">{p.date_paiement} — {formatMontant(p.montant)} ({p.mode_paiement})</span>
                 <button type="button" className="btn btn--ghost btn--sm" onClick={() => telechargerRecu(p)}>Reçu</button>
               </li>
             ))}
@@ -451,7 +452,7 @@ export default function FraisScolaires() {
             <Field label="Année scolaire" htmlFor="annee_scolaire" required error={formErrors.annee_scolaire?.[0]}>
               <Input id="annee_scolaire" name="annee_scolaire" value={form.annee_scolaire} onChange={handleChange} />
             </Field>
-            <Field label="Montant total (FCFA)" htmlFor="montant_total" required error={formErrors.montant_total?.[0]}>
+            <Field label={`Montant total (${monnaie()})`} htmlFor="montant_total" required error={formErrors.montant_total?.[0]}>
               <Input id="montant_total" type="number" min="0" step="0.01" name="montant_total" value={form.montant_total} onChange={handleChange} />
             </Field>
           </div>
@@ -473,7 +474,7 @@ export default function FraisScolaires() {
         }
       >
         <form id="paiement-form" onSubmit={handlePaiementSubmit} noValidate>
-          <Field label="Montant (FCFA)" htmlFor="paiement-montant" required>
+          <Field label={`Montant (${monnaie()})`} htmlFor="paiement-montant" required>
             <Input
               id="paiement-montant"
               type="number"
@@ -540,7 +541,7 @@ export default function FraisScolaires() {
               ))}
             </Select>
           </Field>
-          <Field label="Montant total (FCFA)" htmlFor="bulk-montant" required>
+          <Field label={`Montant total (${monnaie()})`} htmlFor="bulk-montant" required>
             <Input
               id="bulk-montant"
               type="number"

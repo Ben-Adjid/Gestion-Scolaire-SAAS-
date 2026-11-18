@@ -85,8 +85,9 @@ class ComptabiliteController extends Controller
         }
         $lignes[] = ['Total', round($tot['facture'], 2), round($tot['encaisse'], 2), round($tot['impaye'], 2)];
 
-        $contenu = \App\Services\Xlsx::generer('Recouvrement', ['Classe', 'Facturé (FCFA)', 'Encaissé (FCFA)', 'Impayé (FCFA)'], $lignes,
-            ['Facturé (FCFA)', 'Encaissé (FCFA)', 'Impayé (FCFA)'],
+        $m = $request->user()->etablissement?->monnaie() ?? 'FCFA';
+        $contenu = \App\Services\Xlsx::generer('Recouvrement', ['Classe', "Facturé ($m)", "Encaissé ($m)", "Impayé ($m)"], $lignes,
+            ["Facturé ($m)", "Encaissé ($m)", "Impayé ($m)"],
             implode(' — ', array_filter([$request->user()->etablissement?->nom, 'Recouvrement par classe'])));
 
         return response($contenu, 200, [

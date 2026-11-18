@@ -1,4 +1,5 @@
 // Fonction pour mapper le niveau à Collège ou Lycée
+import { paysCourant } from './pays'
 const getNiveauLabel = (niveau) => {
   if (!niveau) return ''
   const cleanNiveau = niveau.toString().trim().toLowerCase()
@@ -164,12 +165,12 @@ export async function downloadBulletinsPdf({ bulletins, etablissement, trimestre
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(11)
     doc.setTextColor(15, 23, 42)
-    doc.text('RÉPUBLIQUE DU TCHAD', center(), 12, { align: 'center' })
+    doc.text(paysCourant().republique, center(), 12, { align: 'center' })
 
     doc.setFont('helvetica', 'italic')
     doc.setFontSize(9)
     doc.setTextColor(59, 130, 246)
-    doc.text(etablissement.devise || 'Unité — Travail — Progrès', center(), 17, { align: 'center' })
+    doc.text(etablissement.devise || paysCourant().devise, center(), 17, { align: 'center' })
 
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(100, 116, 139)
