@@ -139,4 +139,14 @@ class ReprisesModificationSuppressionTest extends TestCase
         $this->assertTrue((bool) $data->firstWhere('id', $avecNotes->id)['a_notes_validees']);
         $this->assertFalse((bool) $data->firstWhere('id', $vierge->id)['a_notes_validees']);
     }
+
+    public function test_le_bulletin_ne_prend_que_l_annee_de_l_eleve(): void
+    {
+        $eleve = $this->eleve('2026-2027');
+        Inscription::create(['etudiant_id' => $eleve->id, 'classe_id' => $this->troisieme->id, 'annee_scolaire' => '2026-2027', 'type' => 'ancien', 'date_inscription' => '2026-09-01', 'statut' => 'active', 'etablissement_id' => $this->etab->id]);
+        $this->note($eleve, 18, '2026-2027');
+        $this->note($eleve, 2, '2025-2026');
+
+        $this->getJson("/api/etudiants/{$eleve->id}/bulletin?trimestre=1")->assertOk()->assertJsonPath('moyenne_generale', 18);
+    }
 }

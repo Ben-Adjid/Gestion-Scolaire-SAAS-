@@ -10,18 +10,15 @@ const THEME_PAR_ROLE = {
   proviseur: 'premium',
 }
 
-export function themePourRole(role) {
-  return THEME_PAR_ROLE[role] || 'defaut'
+// Le thème visuel est celui de l'établissement (couleur appliquée par EtablissementContext) : tous les comptes
+// d'une même école voient la même interface, et deux écoles diffèrent. Les ambiances par rôle ne sont plus utilisées.
+export function themePourRole() {
+  return 'defaut'
 }
 
-// Applique le thème du compte connecté ; le retour rétablit le thème par défaut.
-export function appliquerTheme(role) {
+// Retire toute ambiance par rôle ; l'établissement fixe seulement sa couleur.
+export function appliquerTheme() {
   const racine = document.documentElement
-  const theme = themePourRole(role)
-  if (theme === 'defaut') {
-    delete racine.dataset.theme
-  } else {
-    racine.dataset.theme = theme
-  }
+  delete racine.dataset.theme
   return () => delete racine.dataset.theme
 }

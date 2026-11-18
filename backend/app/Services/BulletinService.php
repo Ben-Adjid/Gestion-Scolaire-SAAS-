@@ -118,7 +118,7 @@ class BulletinService
      *
      * @return array<int, float> etudiant_id => moyenne, trié par moyenne décroissante
      */
-    public function computeClassAverages(array $etudiantIds, ?int $trimestre = 1): array
+    public function computeClassAverages(array $etudiantIds, ?int $trimestre = 1, ?string $annee = null): array
     {
         if ($etudiantIds === []) {
             return [];
@@ -126,6 +126,7 @@ class BulletinService
 
         $notes = \App\Models\Note::query()
             ->whereIn('etudiant_id', $etudiantIds)
+            ->when($annee, fn ($q) => $q->where('annee_scolaire', $annee))
             ->when($trimestre, fn ($q) => $q->where('trimestre', $trimestre))
             ->with('matiere:id,coefficient')
             ->get(['id', 'etudiant_id', 'matiere_id', 'valeur']);
@@ -142,12 +143,14 @@ class BulletinService
 
     public function generateBulletin(Etudiant $etudiant, ?int $trimestre = 1): array
     {
+        $annee = $this->anneeDeReference($etudiant);
         $notes = $etudiant->notes()
+            ->when($annee, fn ($q) => $q->where('annee_scolaire', $annee))
             ->when($trimestre, fn ($q) => $q->where('trimestre', $trimestre))
             ->with('matiere')
             ->get();
 
-        $statsClasse = $this->statsParMatiereClasse($etudiant, $trimestre);
+        $statsClasse = $this->statsParMatiereClasse($etudiant, $trimestre, $annee);
 
         $matieres = $notes->groupBy('matiere_id')->map(function (Collection $notesMatiere) use ($statsClasse) {
             $matiere = $notesMatiere->first()->matiere;
@@ -183,19 +186,20 @@ class BulletinService
             'appreciation_generale' => $mention['label'] ?? '',
             'mention' => $mention,
             'decision' => $this->decision($notes->isEmpty() ? null : $moyenneGenerale),
-            'rang' => $this->rang($etudiant, $trimestre),
+            'rang' => $this->rang($etudiant, $trimestre, $annee),
         ];
     }
 
     /**
      * Pour chaque matière : moyenne de la classe, plus petite et plus grande moyenne d'élève.
      */
-    private function statsParMatiereClasse(Etudiant $etudiant, ?int $trimestre): array
+    private function statsParMatiereClasse(Etudiant $etudiant, ?int $trimestre, ?string $annee = null): array
     {
         $ids = Etudiant::where('classe_id', $etudiant->classe_id)->pluck('id');
 
         $parMatiere = \App\Models\Note::query()
             ->whereIn('etudiant_id', $ids)
+            ->when($annee, fn ($q) => $q->where('annee_scolaire', $annee))
             ->when($trimestre, fn ($q) => $q->where('trimestre', $trimestre))
             ->get(['etudiant_id', 'matiere_id', 'valeur'])
             ->groupBy('matiere_id');
@@ -227,10 +231,10 @@ class BulletinService
         return $totalCoefficient > 0 ? $totalPoints / $totalCoefficient : 0.0;
     }
 
-    private function rang(Etudiant $etudiant, ?int $trimestre): ?int
+    private function rang(Etudiant $etudiant, ?int $trimestre, ?string $annee = null): ?int
     {
         $ids = Etudiant::where('classe_id', $etudiant->classe_id)->pluck('id')->all();
-        $position = array_search($etudiant->id, array_keys($this->computeClassAverages($ids, $trimestre)), true);
+        $position = array_search($etudiant->id, array_keys($this->computeClassAverages($ids, $trimestre, $annee)), true);
 
         return $position === false ? null : $position + 1;
     }

@@ -49,18 +49,19 @@ export function EtablissementProvider({ children }) {
     document.title = etablissement.nom || 'Espace scolaire'
   }, [etablissement.nom])
 
-  // Couleur de l'établissement (formule Entreprise) : on remplace l'accent du thème par défaut.
+  // Thème de l'établissement : tous ses utilisateurs partagent la même couleur.
+  // Couleur choisie (formule Entreprise), sinon couleur nationale du pays de l'école, sinon la couleur par défaut.
   useEffect(() => {
     const racine = document.documentElement
-    const couleur = etablissement.couleur_principale
-    if (couleur) {
+    const couleur = etablissement.couleur_principale || etablissement.pays_info?.couleur
+    if (couleur && /^#[0-9a-f]{6}$/i.test(couleur)) {
       racine.style.setProperty('--primary', couleur)
       racine.style.setProperty('--sidebar-active', couleur)
     } else {
       racine.style.removeProperty('--primary')
       racine.style.removeProperty('--sidebar-active')
     }
-  }, [etablissement.couleur_principale])
+  }, [etablissement.couleur_principale, etablissement.pays_info?.couleur])
 
   const value = useMemo(
     () => ({

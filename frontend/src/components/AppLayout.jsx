@@ -245,8 +245,8 @@ export default function AppLayout() {
   // L'assistant consulte les données de gestion de l'établissement : il n'est pas proposé aux parents ni à la plateforme.
   const assistantDisponible = !['parent', 'super_admin'].includes(user?.role)
 
-  // Chaque type de compte a son ambiance visuelle ; le thème par défaut revient à la sortie.
-  useEffect(() => appliquerTheme(user?.role), [user?.role])
+  // Un seul thème par établissement (couleur de l'école, voir EtablissementContext) : pas d'ambiance par rôle.
+  useEffect(() => appliquerTheme(), [])
 
   const handleLogout = async () => {
     await logout()
