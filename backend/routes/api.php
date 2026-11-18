@@ -256,6 +256,18 @@ Route::middleware(['auth:sanctum', 'subscription', 'enforce_tenant', 'reserve_pa
         Route::post('/sorties/{autorisation}/annuler', [\App\Http\Controllers\Api\AutorisationSortieController::class, 'annuler'])->whereNumber('autorisation');
         Route::get('/sorties/{autorisation}/document', [\App\Http\Controllers\Api\AutorisationSortieController::class, 'document'])->whereNumber('autorisation');
     });
+    // Rendez-vous parents-professeurs.
+    Route::prefix('parent')->middleware('plan:espace_parent')->group(function () {
+        Route::get('/rendez-vous', [\App\Http\Controllers\Api\RendezVousController::class, 'mesRendezVous']);
+        Route::get('/enfants/{etudiant}/enseignants', [\App\Http\Controllers\Api\RendezVousController::class, 'enseignantsDeLEnfant']);
+        Route::post('/enfants/{etudiant}/rendez-vous', [\App\Http\Controllers\Api\RendezVousController::class, 'demander'])->middleware('throttle:20,1');
+        Route::post('/rendez-vous/{rendezVous}/annuler', [\App\Http\Controllers\Api\RendezVousController::class, 'annuler'])->whereNumber('rendezVous');
+    });
+    Route::prefix('rendez-vous')->middleware('plan:espace_parent')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\RendezVousController::class, 'index']);
+        Route::post('/{rendezVous}/confirmer', [\App\Http\Controllers\Api\RendezVousController::class, 'confirmer'])->whereNumber('rendezVous');
+        Route::post('/{rendezVous}/refuser', [\App\Http\Controllers\Api\RendezVousController::class, 'refuser'])->whereNumber('rendezVous');
+    });
     Route::prefix('autorisations-sortie')->middleware('plan:espace_parent')->group(function () {
         Route::get('/', [\App\Http\Controllers\Api\AutorisationSortieController::class, 'index']);
         Route::post('/{autorisation}/decision', [\App\Http\Controllers\Api\AutorisationSortieController::class, 'decider'])->whereNumber('autorisation');

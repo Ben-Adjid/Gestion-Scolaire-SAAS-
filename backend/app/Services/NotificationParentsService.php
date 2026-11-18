@@ -77,6 +77,29 @@ class NotificationParentsService
         );
     }
 
+    /** Réponse à une demande de rendez-vous : créneau confirmé ou refus motivé. */
+    public function notifierRendezVous(\App\Models\RendezVous $rdv): void
+    {
+        $etudiant = $rdv->etudiant;
+        $prof = trim(($rdv->enseignant?->prenom ?? '').' '.($rdv->enseignant?->nom ?? ''));
+
+        if ($rdv->statut === 'confirme') {
+            $quand = $rdv->date_retenue->format('d/m/Y à H:i');
+            $lieu = $rdv->lieu ? " ({$rdv->lieu})" : '';
+            $texte = "Bonjour, votre rendez-vous avec {$prof} au sujet de {$etudiant->prenom} {$etudiant->nom} est confirmé le {$quand}{$lieu}.";
+            $sujet = 'Rendez-vous confirmé';
+        } else {
+            $texte = "Bonjour, {$prof} ne peut pas vous recevoir pour l'instant au sujet de {$etudiant->prenom} {$etudiant->nom}. Réponse : {$rdv->reponse}";
+            $sujet = 'Réponse à votre demande de rendez-vous';
+        }
+        if ($rdv->statut === 'confirme' && $rdv->reponse) {
+            $texte .= " Message : {$rdv->reponse}";
+        }
+
+        // Référence distincte par réponse : une confirmation après un refus reste notifiée.
+        $this->diffuser($etudiant, 'rendez_vous', (int) sprintf('%u', crc32("{$rdv->id}|{$rdv->statut}")), $sujet, $texte);
+    }
+
     private function diffuser(Etudiant $etudiant, string $type, int $reference, string $sujet, string $texte): void
     {
         if (! in_array('notifications_parents', $etudiant->etablissement?->fonctionnalites() ?? [], true)) {

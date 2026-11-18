@@ -20,6 +20,7 @@ const NAV_SECTIONS = [
       { to: '/espace-parent', label: 'Mes enfants', icon: 'student', roles: ['parent'], feature: 'espace_parent' },
       { to: '/chatboard', label: 'Échanges avec l’administration', icon: 'mail', roles: ['parent'], feature: 'espace_parent' },
       { to: '/mes-sorties', label: 'Autorisations de sortie', icon: 'clipboard', roles: ['parent'], feature: 'espace_parent' },
+      { to: '/mes-rendez-vous', label: 'Rendez-vous', icon: 'calendar', roles: ['parent'], feature: 'espace_parent' },
       { to: '/mes-notifications', label: 'Mes notifications', icon: 'settings', roles: ['parent'], feature: 'espace_parent' },
     ],
   },
@@ -38,6 +39,7 @@ const NAV_SECTIONS = [
       { to: '/donnees', label: 'Import & export', icon: 'folder', roles: ['super_admin', 'admin', 'proviseur', 'secretaire'] },
       { to: '/justifications', label: 'Justifications', icon: 'clipboard', roles: ['super_admin', 'admin', 'proviseur', 'censeur', 'cpe'], feature: 'espace_parent' },
       { to: '/autorisations-sortie', label: 'Sorties signées', icon: 'clipboard', roles: ['super_admin', 'admin', 'proviseur', 'censeur', 'cpe', 'surveillant', 'secretaire'], feature: 'espace_parent' },
+      { to: '/rendez-vous', label: 'Rendez-vous parents', icon: 'calendar', roles: ['super_admin', 'admin', 'proviseur', 'censeur', 'cpe', 'enseignant'], feature: 'espace_parent' },
     ],
   },
   {

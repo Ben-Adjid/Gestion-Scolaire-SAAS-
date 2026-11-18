@@ -228,6 +228,17 @@ export const paysApi = {
   liste: () => client.get('/pays'),
 }
 
+// Rendez-vous parents-professeurs.
+export const rendezVousApi = {
+  mesRendezVous: () => client.get('/parent/rendez-vous'),
+  enseignants: (etudiantId) => client.get(`/parent/enfants/${etudiantId}/enseignants`),
+  demander: (etudiantId, data) => client.post(`/parent/enfants/${etudiantId}/rendez-vous`, data),
+  annuler: (id) => client.post(`/parent/rendez-vous/${id}/annuler`),
+  liste: (params) => client.get('/rendez-vous', { params }),
+  confirmer: (id, data) => client.post(`/rendez-vous/${id}/confirmer`, data),
+  refuser: (id, reponse) => client.post(`/rendez-vous/${id}/refuser`, { reponse }),
+}
+
 // Autorisations de sortie signées par les parents : traitement par la vie scolaire.
 export const autorisationsSortieApi = {
   liste: (params) => client.get('/autorisations-sortie', { params }),

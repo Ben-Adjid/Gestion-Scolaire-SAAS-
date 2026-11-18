@@ -54,7 +54,7 @@ class User extends Authenticatable
     ];
 
     /** Événements et canaux qu'un parent peut choisir de recevoir (tout est activé par défaut). */
-    public const EVENEMENTS_NOTIFIES = ['absence', 'retard', 'convocation', 'sortie'];
+    public const EVENEMENTS_NOTIFIES = ['absence', 'retard', 'convocation', 'sortie', 'rendez_vous'];
 
     public const CANAUX_NOTIFICATION = ['email', 'whatsapp'];
 

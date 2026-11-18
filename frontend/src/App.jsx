@@ -43,6 +43,8 @@ import Chatboard from './pages/Chatboard'
 import SortiesParent from './pages/SortiesParent'
 import NotificationsParent from './pages/NotificationsParent'
 import AutorisationsSortie from './pages/AutorisationsSortie'
+import RendezVousParent from './pages/RendezVousParent'
+import RendezVous from './pages/RendezVous'
 import Actualites from './pages/Actualites'
 import PlanningExamens from './pages/PlanningExamens'
 import Securite from './pages/Securite'
@@ -429,6 +431,26 @@ export default function App() {
             <RoleRoute roles={['admin', 'proviseur', 'censeur', 'cpe', 'surveillant', 'secretaire']}>
               <PlanRoute feature="espace_parent">
                 <AutorisationsSortie />
+              </PlanRoute>
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="mes-rendez-vous"
+          element={
+            <RoleRoute roles={['parent']}>
+              <PlanRoute feature="espace_parent">
+                <RendezVousParent />
+              </PlanRoute>
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="rendez-vous"
+          element={
+            <RoleRoute roles={['enseignant', 'admin', 'proviseur', 'censeur', 'cpe']}>
+              <PlanRoute feature="espace_parent">
+                <RendezVous />
               </PlanRoute>
             </RoleRoute>
           }

@@ -10,6 +10,7 @@ const EVENEMENTS = {
   retard: { libelle: 'Retards', aide: 'Quand votre enfant arrive en retard.' },
   convocation: { libelle: 'Convocations', aide: 'Quand l’établissement vous convoque.' },
   sortie: { libelle: 'Sorties', aide: 'Quand votre enfant quitte l’établissement avec votre autorisation.' },
+  rendez_vous: { libelle: 'Rendez-vous', aide: 'Quand un enseignant confirme ou répond à votre demande.' },
 }
 const CANAUX = { email: 'E-mail', whatsapp: 'WhatsApp' }
 
