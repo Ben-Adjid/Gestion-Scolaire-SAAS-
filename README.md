@@ -242,3 +242,8 @@ Proprietary - Tous droits reserves
 5. Choisir et intégrer un prestataire avant d'activer le paiement hébergé
 
 **Le code ne constitue pas à lui seul une certification de préparation à la production.**
+
+
+
+pour le bulletin je vois pas la classe ni niveau et lorsque des reinscription je vois pas la moyenne s'affiche 
+la partie du paime là il faut voir le reçus c'est telecharge en fichier html au lieux de pdf et apres encaissement le mode paiement est toujours active alors ce n'est pas normal,aussi pour le bouton modifier et supprime 
