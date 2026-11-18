@@ -30,6 +30,7 @@ class EtudiantRequest extends FormRequest
             'telephone' => 'nullable|string|max:20',
             'adresse' => 'nullable|string|max:255',
             'classe_id' => 'required|exists:classes,id',
+            'confirmer_doublon' => 'sometimes|boolean',
         ];
     }
 

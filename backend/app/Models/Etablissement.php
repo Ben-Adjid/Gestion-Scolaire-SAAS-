@@ -10,7 +10,19 @@ class Etablissement extends Model
 {
     use HasFactory;
 
+    protected $appends = ['plan_label', 'fonctionnalites', 'jours_restants'];
+
+    /**
+     * Jours avant la fin de l'abonnement (négatif si dépassé, null si pas de date).
+     * Sert au bandeau d'alerte du tableau de bord.
+     */
+    public function getJoursRestantsAttribute(): ?int
+    {
+        return $this->abonnement_fin ? (int) today()->diffInDays($this->abonnement_fin, false) : null;
+    }
+
     protected $fillable = [
+        'groupe_scolaire_id',
         'nom',
         'devise',
         'ministere',
@@ -19,7 +31,13 @@ class Etablissement extends Model
         'responsable',
         'annee_scolaire',
         'prefixe_matricule',
+        'bulletin_signature_nom',
+        'bulletin_signature_titre',
+        'bulletin_mention',
+        'bulletin_afficher_rang',
+        'bulletin_couleur',
         'logo_path',
+        'couleur_principale',
         'latitude',
         'longitude',
         'rayon_pointage',
@@ -31,6 +49,7 @@ class Etablissement extends Model
 
     protected $casts = [
         'latitude'       => 'float',
+        'bulletin_afficher_rang' => 'boolean',
         'longitude'      => 'float',
         'rayon_pointage' => 'integer',
         'abonnement_fin' => 'date',
@@ -70,12 +89,30 @@ class Etablissement extends Model
     /** Retourne le libellé du plan. */
     public function getPlanLabelAttribute(): string
     {
-        return match($this->plan) {
-            'starter'    => 'Starter',
-            'standard'   => 'Standard',
-            'premium'    => 'Premium',
-            'entreprise' => 'Entreprise',
-            default      => 'Standard',
-        };
+        return config('plans.plans.'.$this->planCode().'.libelle', 'Standard');
+    }
+
+    /** Nombre maximal d'utilisateurs de la formule (null = illimité). */
+    public function maxUtilisateurs(): ?int
+    {
+        return config('plans.plans.'.$this->planCode().'.max_utilisateurs');
+    }
+
+    public function planCode(): string
+    {
+        return array_key_exists((string) $this->plan, config('plans.plans', []))
+            ? (string) $this->plan
+            : config('plans.defaut');
+    }
+
+    /** Fonctionnalités incluses dans le plan de l'établissement. */
+    public function fonctionnalites(): array
+    {
+        return config('plans.plans.'.$this->planCode().'.fonctionnalites', []);
+    }
+
+    public function getFonctionnalitesAttribute(): array
+    {
+        return $this->fonctionnalites();
     }
 }

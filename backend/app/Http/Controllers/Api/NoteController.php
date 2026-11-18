@@ -11,6 +11,9 @@ use App\Services\BulletinService;
 use App\Services\TeacherScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 
 class NoteController extends Controller
 {
@@ -56,22 +59,21 @@ class NoteController extends Controller
     {
         $this->assertTeacherCanGrade($request->user(), $request->validated('etudiant_id'), $request->validated('matiere_id'));
 
-        $existante = Note::where([
+        $cle = [
             'etudiant_id' => $request->validated('etudiant_id'),
             'matiere_id' => $request->validated('matiere_id'),
             'trimestre' => $request->validated('trimestre'),
-        ])->first();
+            'type' => $request->validated('type') ?? 'devoir',
+        ];
+
+        $existante = Note::where($cle)->first();
 
         if ($existante) {
             $this->authorize('update', $existante);
         }
 
         $note = Note::updateOrCreate(
-            [
-                'etudiant_id' => $request->validated('etudiant_id'),
-                'matiere_id' => $request->validated('matiere_id'),
-                'trimestre' => $request->validated('trimestre'),
-            ],
+            $cle,
             $this->avecAppreciation($request->validated())
         );
 
@@ -96,10 +98,11 @@ class NoteController extends Controller
         $this->authorize('update', $note);
         $this->assertTeacherCanGrade($request->user(), $request->validated('etudiant_id'), $request->validated('matiere_id'));
 
+        $avant = $this->valeursNote($note);
         $note->update($this->avecAppreciation($request->validated()));
 
         AuditLogger::log($request->user(), 'modification', 'notes', $note->id,
-            "Modification de note pour étudiant {$note->etudiant_id}");
+            "Modification de note pour étudiant {$note->etudiant_id}", $avant, $this->valeursNote($note->fresh()));
 
         return response()->json([
             'message' => 'Note mise à jour avec succès.',
@@ -122,27 +125,36 @@ class NoteController extends Controller
         $statut = ! empty($validated['valider']) ? 'valide' : 'brouillon';
         $created = 0;
 
-        foreach ($validated['notes'] as $ligne) {
-            $this->assertTeacherCanGrade($request->user(), (int) $ligne['etudiant_id'], (int) $validated['matiere_id']);
+        // Saisie tout-ou-rien : si une seule ligne est refusée, aucune note de la saisie n'est enregistrée.
+        DB::transaction(function () use ($request, $validated, $statut, &$created) {
+            foreach ($validated['notes'] as $ligne) {
+                $this->assertTeacherCanGrade($request->user(), (int) $ligne['etudiant_id'], (int) $validated['matiere_id']);
 
-            $note = Note::firstOrNew([
-                'etudiant_id' => $ligne['etudiant_id'],
-                'matiere_id' => $validated['matiere_id'],
-                'trimestre' => $validated['trimestre'],
-            ]);
+                $note = Note::firstOrNew([
+                    'etudiant_id' => $ligne['etudiant_id'],
+                    'matiere_id' => $validated['matiere_id'],
+                    'trimestre' => $validated['trimestre'],
+                    'type' => $validated['type'] ?? 'devoir',
+                ]);
 
-            if ($note->exists) {
-                $this->authorize('update', $note);
+                if ($note->exists && ! Gate::forUser($request->user())->allows('update', $note)) {
+                    throw ValidationException::withMessages([
+                        'notes' => ["La note de l'élève n° {$ligne['etudiant_id']} est déjà validée et verrouillée : aucune note de la saisie n'a été enregistrée."],
+                    ]);
+                }
+
+                $avant = $note->exists ? $this->valeursNote($note) : null;
+                $note->fill([
+                    'valeur' => $ligne['valeur'],
+                    'type' => $validated['type'] ?? $note->type ?? 'devoir',
+                    'statut' => $statut,
+                    'appreciation' => $this->appreciationPour((float) $ligne['valeur'], $note->appreciation),
+                ])->save();
+                AuditLogger::log($request->user(), $avant ? 'modification' : 'création', 'notes', $note->id,
+                    "Saisie groupée : note de l'étudiant {$note->etudiant_id}", $avant, $this->valeursNote($note->fresh()));
+                $created++;
             }
-
-            $note->fill([
-                'valeur' => $ligne['valeur'],
-                'type' => $validated['type'] ?? $note->type ?? 'devoir',
-                'statut' => $statut,
-                'appreciation' => $this->appreciationPour((float) $ligne['valeur'], $note->appreciation),
-            ])->save();
-            $created++;
-        }
+        });
 
         AuditLogger::log($request->user(), 'création_groupée', 'notes', null,
             "Saisie groupée de $created notes");
@@ -151,6 +163,20 @@ class NoteController extends Controller
             'message' => "$created notes enregistrées avec succès.",
             'count' => $created,
         ]);
+    }
+
+    /** Valeurs d'une note tracées dans le journal (sans données personnelles hors identifiants). */
+    private function valeursNote(Note $note): array
+    {
+        return [
+            'etudiant_id' => $note->etudiant_id,
+            'matiere_id' => $note->matiere_id,
+            'trimestre' => $note->trimestre,
+            'type' => $note->type,
+            'valeur' => (float) $note->valeur,
+            'appreciation' => $note->appreciation,
+            'statut' => $note->statut,
+        ];
     }
 
     private function avecAppreciation(array $data): array
@@ -185,10 +211,11 @@ class NoteController extends Controller
     {
         $this->authorize('delete', $note);
 
+        $avant = $this->valeursNote($note);
         $note->delete();
 
         AuditLogger::log(auth()->user(), 'suppression', 'notes', $note->id,
-            "Suppression d'une note");
+            "Suppression d'une note", $avant, null);
 
         return response()->json(['message' => 'Note supprimée avec succès.']);
     }

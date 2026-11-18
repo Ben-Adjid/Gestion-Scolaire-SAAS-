@@ -32,16 +32,21 @@ class AssistantController extends Controller
             return response()->json(['reply' => $this->capabilities()]);
         }
 
+        // Chaque information n'est donnée qu'aux rôles concernés (données de direction ou de scolarité).
+        $user = $request->user();
+        $direction = $user->hasAnyRole(['super_admin', 'admin', 'proviseur', 'censeur', 'cpe']);
+        $pedagogie = $direction || $user->hasAnyRole(['enseignant']);
+
         if ($this->hasAny($message, ['statistique', 'stat', 'effectif', 'nombre d', 'combien'])) {
-            return response()->json(['reply' => $this->stats()]);
+            return response()->json(['reply' => $direction ? $this->stats() : $this->refus()]);
         }
 
         if ($this->hasAny($message, ['top', 'meilleur', 'palmarès', 'palmares', 'mérite', 'merite', 'premier'])) {
-            return response()->json(['reply' => $this->topEleves()]);
+            return response()->json(['reply' => $pedagogie ? $this->topEleves() : $this->refus()]);
         }
 
         if ($this->hasAny($message, ['appréciation', 'appreciation', 'commentaire'])) {
-            return response()->json(['reply' => $this->appreciation($message)]);
+            return response()->json(['reply' => $pedagogie ? $this->appreciation($message) : $this->refus()]);
         }
 
         if ($this->hasAny($message, ['règle', 'regle', 'seuil', 'admission', 'paramètre', 'parametre', 'mention', 'validation', 'valider'])) {
@@ -87,6 +92,11 @@ class AssistantController extends Controller
             "• « Emploi du temps » : aide sur la programmation des cours\n".
             "• « Inscription » : aide sur les inscriptions\n".
             "• « Moyenne annuelle » : explication du bilan annuel";
+    }
+
+    private function refus(): string
+    {
+        return "Cette information n'est pas accessible avec votre rôle. Adressez-vous à la direction de l'établissement.";
     }
 
     private function stats(): string

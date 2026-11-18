@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { classesApi, etudiantsApi, matieresApi, notesApi } from '../api/endpoints'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
@@ -45,12 +45,29 @@ export default function Notes() {
 
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState({ valeur: '', appreciation: '' })
+  const [commentTemplates, setCommentTemplates] = useState([])
+  const [newCommentTemplate, setNewCommentTemplate] = useState('')
   const [formErrors, setFormErrors] = useState({})
   const [saving, setSaving] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
 
   const [deleting, setDeleting] = useState(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const noteInputs = useRef([])
+
+  useEffect(() => {
+    if (!user?.id) return
+    try {
+      const saved = JSON.parse(localStorage.getItem(`note-comment-templates:${user.id}`) || '[]')
+      if (!Array.isArray(saved) || !saved.every((item) => typeof item === 'string')) {
+        throw new Error('Format de modèles invalide')
+      }
+      setCommentTemplates(saved)
+    } catch {
+      toast.error('Les modèles de commentaires enregistrés sur cet appareil sont illisibles.')
+      setCommentTemplates([])
+    }
+  }, [user?.id, toast])
 
   useEffect(() => {
     classesApi.list({ per_page: 1000 }).then((res) => setClasses(res.data.data)).catch(() => {})
@@ -116,6 +133,30 @@ export default function Notes() {
 
   const handleNoteChange = (etudiantId, value) => {
     setNotesMap((prev) => ({ ...prev, [etudiantId]: value }))
+  }
+
+  // Navigation au clavier dans la saisie : Entrée ou flèche bas pour l'élève suivant, flèche haut pour le précédent.
+  const focusNextNote = (event, studentId) => {
+    if (!['Enter', 'ArrowDown', 'ArrowUp'].includes(event.key)) return
+    event.preventDefault()
+    const editableInputs = noteInputs.current.filter((input) => input && !input.disabled)
+    const currentIndex = editableInputs.findIndex((input) => Number(input.dataset.studentId) === studentId)
+    const cible = event.key === 'ArrowUp' ? currentIndex - 1 : currentIndex + 1
+    editableInputs[cible]?.focus()
+  }
+
+  const enregistrerModeleCommentaire = () => {
+    const commentaire = newCommentTemplate.trim()
+    if (!commentaire || commentaire.length > 200) return
+    const modeles = [...new Set([...commentTemplates, commentaire])].slice(0, 20)
+    try {
+      localStorage.setItem(`note-comment-templates:${user.id}`, JSON.stringify(modeles))
+      setCommentTemplates(modeles)
+      setNewCommentTemplate('')
+      toast.success('Modèle de commentaire enregistré sur cet appareil.')
+    } catch {
+      toast.error('Impossible d’enregistrer le modèle de commentaire dans le navigateur.')
+    }
   }
 
   const saveBulk = async (valider) => {
@@ -279,7 +320,7 @@ export default function Notes() {
             </div>
 
             <div className="note-rule-hint">
-              🔒 Une fois validées, les notes sont <strong>verrouillées</strong> : seul le proviseur peut les modifier ou les supprimer.
+              Une fois validées, les notes sont <strong>verrouillées</strong> : seul le proviseur peut les modifier ou les supprimer.
             </div>
 
             {!classeId ? (
@@ -301,7 +342,7 @@ export default function Notes() {
                       </tr>
                     </thead>
                     <tbody>
-                      {eleves.map((e) => (
+                      {eleves.map((e, index) => (
                         <tr key={e.id}>
                           <td className="cell-strong">{e.prenom} {e.nom}</td>
                           <td className="cell-muted">{e.matricule || '—'}</td>
@@ -322,13 +363,16 @@ export default function Notes() {
                                 className={`input note-input ${noteClass(parseFloat(notesMap[e.id]))}`}
                                 value={notesMap[e.id] ?? ''}
                                 onChange={(ev) => handleNoteChange(e.id, ev.target.value)}
+                                onKeyDown={(ev) => focusNextNote(ev, e.id)}
+                                ref={(element) => { noteInputs.current[index] = element }}
+                                data-student-id={e.id}
                                 placeholder="—"
                               />
                             )}
                           </td>
                           <td>
                             {locked[e.id] ? (
-                              <span className="badge badge--success">🔒 Validée</span>
+                              <span className="badge badge--success">Validée</span>
                             ) : notesMap[e.id] !== undefined && notesMap[e.id] !== '' ? (
                               <span className="badge badge--amber">Brouillon</span>
                             ) : (
@@ -345,7 +389,7 @@ export default function Notes() {
                     {savingBulk ? 'Enregistrement…' : 'Enregistrer (brouillon)'}
                   </button>
                   <button type="button" className="btn btn--primary" onClick={() => saveBulk(true)} disabled={savingBulk || !matiereId}>
-                    🔒 Valider les notes
+                    Valider les notes
                   </button>
                 </div>
               </>
@@ -369,10 +413,10 @@ export default function Notes() {
                 ))}
               </Select>
               <button type="button" className="btn btn--ghost btn--sm" onClick={handleDownload}>
-                ⬇ Télécharger CSV
+                Télécharger CSV
               </button>
               <button type="button" className="btn btn--ghost btn--sm" onClick={handleDownloadPdf}>
-                📄 Télécharger PDF
+                Télécharger PDF
               </button>
             </div>
 
@@ -400,7 +444,7 @@ export default function Notes() {
                         <td className="cell-strong">{item.etudiant?.prenom} {item.etudiant?.nom}</td>
                         <td>
                           <span className="matiere-cell">
-                            <span className="matiere-dot" style={{ background: item.matiere?.couleur || '#4f46e5' }} />
+                            <span className="matiere-dot" style={{ background: item.matiere?.couleur || '#1F5C4A' }} />
                             {item.matiere?.nom}
                           </span>
                         </td>
@@ -413,7 +457,7 @@ export default function Notes() {
                         </td>
                         <td>
                           {item.statut === 'valide' ? (
-                            <span className="badge badge--success">🔒 Validée</span>
+                            <span className="badge badge--success">Validée</span>
                           ) : (
                             <span className="badge badge--amber">Brouillon</span>
                           )}
@@ -421,11 +465,11 @@ export default function Notes() {
                         <td className="cell-actions">
                           {canModify(item) ? (
                             <>
-                              <button type="button" className="icon-btn" title="Modifier" onClick={() => openEdit(item)}>✏️</button>
-                              <button type="button" className="icon-btn" title="Supprimer" onClick={() => setDeleting(item)}>🗑️</button>
+                              <button type="button" className="btn btn--ghost btn--sm" onClick={() => openEdit(item)}>Modifier</button>
+                              <button type="button" className="btn btn--ghost btn--sm" onClick={() => setDeleting(item)}>Supprimer</button>
                             </>
                           ) : (
-                            <span className="muted" title="Note verrouillée">🔒</span>
+                            <span className="muted">Verrouillée</span>
                           )}
                         </td>
                       </tr>
@@ -458,6 +502,34 @@ export default function Notes() {
           <Field label="Appréciation" htmlFor="appreciation" error={formErrors.appreciation?.[0]}>
             <Input id="appreciation" name="appreciation" value={form.appreciation} onChange={handleFormChange} placeholder="Facultatif" error={formErrors.appreciation?.[0]} />
           </Field>
+          <Field label="Modèle enregistré" htmlFor="commentaire-modele">
+            <Select
+              id="commentaire-modele"
+              value=""
+              onChange={(event) => {
+                if (event.target.value) setForm((prev) => ({ ...prev, appreciation: event.target.value }))
+              }}
+            >
+              <option value="">Choisir un commentaire réutilisable</option>
+              {commentTemplates.map((commentaire) => <option key={commentaire} value={commentaire}>{commentaire}</option>)}
+            </Select>
+          </Field>
+          <div className="form-grid">
+            <Field label="Nouveau modèle" htmlFor="nouveau-modele-commentaire" hint="Enregistré uniquement sur cet appareil.">
+              <Input
+                id="nouveau-modele-commentaire"
+                value={newCommentTemplate}
+                maxLength={200}
+                onChange={(event) => setNewCommentTemplate(event.target.value)}
+                placeholder="Ex. Des progrès réguliers, continuez ainsi."
+              />
+            </Field>
+            <div className="form-actions">
+              <button type="button" className="btn btn--ghost" onClick={enregistrerModeleCommentaire} disabled={!newCommentTemplate.trim()}>
+                Enregistrer le modèle
+              </button>
+            </div>
+          </div>
         </form>
       </Modal>
 

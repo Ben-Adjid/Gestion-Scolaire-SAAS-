@@ -7,6 +7,7 @@ use App\Models\Matiere;
 use Illuminate\Http\Request;
 use App\Services\AuditLogger;
 use App\Services\TeacherScope;
+use Illuminate\Support\Str;
 
 class MatiereController extends Controller
 {
@@ -37,11 +38,15 @@ class MatiereController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'nom' => 'required|string|unique:matieres',
-            'code' => 'required|string|unique:matieres',
-            'coefficient' => 'required|numeric|min:1|max:5',
+            'nom' => 'required|string|max:255|unique:matieres',
+            'code' => 'nullable|string|max:255|unique:matieres,code',
+            'coefficient' => 'required|integer|min:1|max:20',
             'couleur' => 'nullable|string|regex:/^#[0-9A-F]{6}$/i',
         ]);
+
+        $validated['code'] = filled($validated['code'] ?? null)
+            ? $validated['code']
+            : $this->generateCode($validated['nom']);
 
         $matiere = Matiere::create($validated);
 
@@ -60,7 +65,7 @@ class MatiereController extends Controller
         $validated = $request->validate([
             'nom' => "string|unique:matieres,nom,{$matiere->id}",
             'code' => "string|unique:matieres,code,{$matiere->id}",
-            'coefficient' => 'numeric|min:1|max:5',
+            'coefficient' => 'integer|min:1|max:20',
             'couleur' => 'nullable|string|regex:/^#[0-9A-F]{6}$/i',
         ]);
 
@@ -69,6 +74,21 @@ class MatiereController extends Controller
         AuditLogger::log(auth()->user(), 'update', 'Matiere', $matiere->id, "Mise à jour de la matière");
 
         return response()->json($matiere);
+    }
+
+    private function generateCode(string $nom): string
+    {
+        $base = Str::upper(Str::slug($nom, ''));
+        $base = $base !== '' ? $base : 'MATIERE';
+        $base = Str::limit($base, 240, '');
+
+        for ($suffix = 1; ; $suffix++) {
+            $candidate = $suffix === 1 ? $base : $base.'-'.$suffix;
+
+            if (! Matiere::withoutGlobalScopes()->where('code', $candidate)->exists()) {
+                return $candidate;
+            }
+        }
     }
 
     public function destroy(Matiere $matiere)

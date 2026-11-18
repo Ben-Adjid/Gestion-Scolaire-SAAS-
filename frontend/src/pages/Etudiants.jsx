@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import { classesApi, etudiantsApi } from '../api/endpoints'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
@@ -28,6 +30,9 @@ const EMPTY_FORM = {
 
 export default function Etudiants() {
   const toast = useToast()
+  const navigate = useNavigate()
+  const { user } = useAuth()
+  const canViewSuivi = ['admin', 'proviseur', 'censeur', 'cpe'].includes(user?.role)
   const [items, setItems] = useState([])
   const [meta, setMeta] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -45,6 +50,7 @@ export default function Etudiants() {
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [formErrors, setFormErrors] = useState({})
+  const [doublons, setDoublons] = useState([])
   const [saving, setSaving] = useState(false)
 
   const [deleting, setDeleting] = useState(null)
@@ -109,6 +115,7 @@ export default function Etudiants() {
     setEditing(null)
     setForm(EMPTY_FORM)
     setFormErrors({})
+    setDoublons([])
     setModalOpen(true)
   }
 
@@ -127,13 +134,15 @@ export default function Etudiants() {
       annee_scolaire: item.annee_scolaire || '2025-2026',
     })
     setFormErrors({})
+    setDoublons([])
     setModalOpen(true)
   }
 
   const handleChange = (e) => {
     const { name, value } = e.target
-    setForm((prev) => ({ ...prev, [name]: value }))
+    setForm((prev) => ({ ...prev, [name]: value, confirmer_doublon: false }))
     setFormErrors((prev) => ({ ...prev, [name]: undefined }))
+    setDoublons([])
   }
 
   const handleFilterChange = (e) => {
@@ -147,6 +156,7 @@ export default function Etudiants() {
     setSaving(true)
     setFormErrors({})
     const payload = { ...form }
+    if (editing) delete payload.confirmer_doublon
     if (!payload.date_naissance) payload.date_naissance = null
     if (!payload.classe_id) payload.classe_id = null
 
@@ -161,7 +171,11 @@ export default function Etudiants() {
       setModalOpen(false)
       view === 'grouped' ? fetchGrouped() : fetchData()
     } catch (err) {
-      setFormErrors(err.errors || {})
+      if (err.response?.data?.code === 'doublon_potentiel') {
+        setDoublons(err.response.data.doublons || [])
+      } else {
+        setFormErrors(err.errors || {})
+      }
     } finally {
       setSaving(false)
     }
@@ -290,13 +304,13 @@ export default function Etudiants() {
               </button>
             </div>
             <button type="button" className="btn btn--ghost no-print" onClick={() => window.print()}>
-              🖨️ Imprimer
+              Imprimer
             </button>
             <button type="button" className="btn btn--ghost no-print" onClick={handleDownload}>
-              ⬇ Télécharger CSV
+              Télécharger CSV
             </button>
             <button type="button" className="btn btn--ghost no-print" onClick={handleDownloadPdf}>
-              📄 Télécharger PDF
+              Télécharger PDF
             </button>
           </>
         }
@@ -416,12 +430,17 @@ export default function Etudiants() {
                     <td>{formatDate(item.date_naissance)}</td>
                     <td className="cell-muted">{item.email || '—'}</td>
                     <td className="cell-actions no-print">
-                      <button type="button" className="icon-btn" title="Modifier" onClick={() => openEdit(item)}>
-                        ✏️
-                      </button>
-                      <button type="button" className="icon-btn" title="Supprimer" onClick={() => setDeleting(item)}>
-                        🗑️
-                      </button>
+                      {canViewSuivi && (
+                        <button
+                          type="button"
+                          className="btn btn--ghost btn--sm"
+                          onClick={() => navigate(`/etudiants/${item.id}/suivi`)}
+                        >
+                          Suivi
+                        </button>
+                      )}
+                      <button type="button" className="btn btn--ghost btn--sm" onClick={() => openEdit(item)}>Modifier</button>
+                      <button type="button" className="btn btn--ghost btn--sm" onClick={() => setDeleting(item)}>Supprimer</button>
                     </td>
                   </tr>
                 ))}
@@ -450,6 +469,29 @@ export default function Etudiants() {
         }
       >
         <form id="etudiant-form" onSubmit={handleSubmit} noValidate>
+          {doublons.length > 0 && (
+            <Alert type="error">
+              <strong>Vérifiez les doublons potentiels avant de continuer :</strong>
+              <ul>
+                {doublons.map((doublon) => (
+                  <li key={doublon.id}>
+                    {doublon.prenom} {doublon.nom} — {doublon.matricule || 'sans matricule'}
+                    {doublon.date_naissance ? ` — né(e) le ${formatDate(doublon.date_naissance)}` : ''}
+                    {doublon.classe ? ` — ${doublon.classe}` : ''}
+                  </li>
+                ))}
+              </ul>
+              <label className="field-checkbox">
+                <input
+                  type="checkbox"
+                  checked={Boolean(form.confirmer_doublon)}
+                  onChange={(e) => setForm((prev) => ({ ...prev, confirmer_doublon: e.target.checked }))}
+                />
+                <span>J’ai vérifié : il s’agit d’un autre élève, je confirme la création.</span>
+              </label>
+            </Alert>
+          )}
+          <h3 className="form-titre-section">Identité</h3>
           <div className="form-grid">
             <Field label="Prénom" htmlFor="prenom" required error={formErrors.prenom?.[0]}>
               <Input id="prenom" name="prenom" value={form.prenom} onChange={handleChange} placeholder="Ex : Moussa" error={formErrors.prenom?.[0]} />
@@ -458,6 +500,7 @@ export default function Etudiants() {
               <Input id="nom" name="nom" value={form.nom} onChange={handleChange} placeholder="Ex : Ndiaye" error={formErrors.nom?.[0]} />
             </Field>
           </div>
+          <h3 className="form-titre-section">Scolarité</h3>
           <div className="form-grid">
             <Field label="Date de naissance" htmlFor="date_naissance" error={formErrors.date_naissance?.[0]}>
               <Input id="date_naissance" type="date" name="date_naissance" value={form.date_naissance} onChange={handleChange} error={formErrors.date_naissance?.[0]} />
@@ -480,16 +523,17 @@ export default function Etudiants() {
               ))}
             </Select>
           </Field>
+          <h3 className="form-titre-section">Contact</h3>
           <div className="form-grid">
             <Field label="Adresse e-mail" htmlFor="email" error={formErrors.email?.[0]} hint="Optionnel">
               <Input id="email" type="email" name="email" value={form.email} onChange={handleChange} placeholder="etudiant@ecole.com" error={formErrors.email?.[0]} />
             </Field>
             <Field label="Téléphone" htmlFor="telephone" error={formErrors.telephone?.[0]} hint="Optionnel">
-              <Input id="telephone" name="telephone" value={form.telephone} onChange={handleChange} placeholder="Ex : +221 77 000 00 00" error={formErrors.telephone?.[0]} />
+              <Input id="telephone" name="telephone" value={form.telephone} onChange={handleChange} placeholder="Ex : +235 66 00 00 00" error={formErrors.telephone?.[0]} />
             </Field>
           </div>
           <Field label="Adresse" htmlFor="adresse" error={formErrors.adresse?.[0]} hint="Optionnel">
-            <Input id="adresse" name="adresse" value={form.adresse} onChange={handleChange} placeholder="Ex : Dakar, Médina" error={formErrors.adresse?.[0]} />
+            <Input id="adresse" name="adresse" value={form.adresse} onChange={handleChange} placeholder="Ex : N’Djaména, Moursal" error={formErrors.adresse?.[0]} />
           </Field>
         </form>
       </Modal>

@@ -13,6 +13,10 @@ import { useEtablissement } from '../context/EtablissementContext'
 
 export default function Palmares() {
   const { etablissement } = useEtablissement()
+  // Sceau de secours (sans logo) : initiales du nom de l'établissement connecté.
+  const motsNom = (etablissement.nom || '').split(/\s+/).filter(Boolean).map((m) => m.toUpperCase().slice(0, 9))
+  const sceauLignes = [motsNom[0] || '', motsNom[1] || '', motsNom[2] || '']
+  const sceauInitiale = (motsNom[0]?.[0] || '?')
   const [classes, setClasses] = useState([])
   const [cycle, setCycle] = useState('')
   const [classeId, setClasseId] = useState('')
@@ -135,13 +139,13 @@ export default function Palmares() {
               ))}
             </Select>
             <button type="button" className="btn btn--primary" onClick={fetchPalmares}>
-              🔍 Afficher le tableau d'honneur
+              Afficher le tableau d'honneur
             </button>
             <button type="button" className="btn btn--ghost no-print" onClick={() => window.print()}>
-              🖨️ Imprimer / PDF
+              Imprimer / PDF
             </button>
             <button type="button" className="btn btn--ghost no-print" onClick={handleDownloadPdf}>
-              📄 Télécharger PDF
+              Télécharger PDF
             </button>
           </>
         }
@@ -204,7 +208,7 @@ export default function Palmares() {
                             className="btn btn--ghost btn--sm no-print"
                             onClick={() => openAttestation(entry, section.classe.nom)}
                           >
-                            🏆 Attestation
+                            Attestation
                           </button>
                         </td>
                       </tr>
@@ -233,13 +237,13 @@ export default function Palmares() {
                 ) : (
                   <div className="attestation-emblem-inner" aria-label="Logo de l'établissement">
                     <svg viewBox="0 0 220 220" className="attestation-badge-svg">
-                      <circle cx="110" cy="110" r="100" fill="none" stroke="#1d2433" strokeWidth="7" />
-                      <circle cx="110" cy="110" r="80" fill="none" stroke="#1d2433" strokeWidth="2" />
-                      <text x="110" y="72" textAnchor="middle" fontSize="20" fontWeight="700" fill="#1d2433" letterSpacing="2">LYCÉE</text>
-                      <text x="110" y="95" textAnchor="middle" fontSize="18" fontWeight="700" fill="#1d2433" letterSpacing="2">IBNOU</text>
-                      <text x="110" y="120" textAnchor="middle" fontSize="18" fontWeight="700" fill="#1d2433" letterSpacing="2">CINA</text>
-                      <path d="M110 132 L155 165 L110 188 L65 165 Z" fill="#1d2433" />
-                      <text x="110" y="170" textAnchor="middle" fontSize="26" fontWeight="800" fill="#fff">Y</text>
+                      <circle cx="110" cy="110" r="100" fill="none" stroke="#1A3A33" strokeWidth="7" />
+                      <circle cx="110" cy="110" r="80" fill="none" stroke="#1A3A33" strokeWidth="2" />
+                      <text x="110" y="72" textAnchor="middle" fontSize="20" fontWeight="700" fill="#1A3A33" letterSpacing="2">{sceauLignes[0]}</text>
+                      <text x="110" y="95" textAnchor="middle" fontSize="18" fontWeight="700" fill="#1A3A33" letterSpacing="2">{sceauLignes[1]}</text>
+                      <text x="110" y="120" textAnchor="middle" fontSize="18" fontWeight="700" fill="#1A3A33" letterSpacing="2">{sceauLignes[2]}</text>
+                      <path d="M110 132 L155 165 L110 188 L65 165 Z" fill="#1A3A33" />
+                      <text x="110" y="170" textAnchor="middle" fontSize="26" fontWeight="800" fill="#fff">{sceauInitiale}</text>
                     </svg>
                   </div>
                 )}
@@ -252,13 +256,13 @@ export default function Palmares() {
                 <div className="attestation-school-wrap">
                   <div className="attestation-school-icon" aria-hidden="true">
                     <svg viewBox="0 0 220 220" className="attestation-school-svg">
-                      <circle cx="110" cy="110" r="100" fill="none" stroke="#1d2433" strokeWidth="7" />
-                      <circle cx="110" cy="110" r="80" fill="none" stroke="#1d2433" strokeWidth="2" />
-                      <text x="110" y="72" textAnchor="middle" fontSize="20" fontWeight="700" fill="#1d2433" letterSpacing="2">LYCÉE</text>
-                      <text x="110" y="95" textAnchor="middle" fontSize="18" fontWeight="700" fill="#1d2433" letterSpacing="2">IBNOU</text>
-                      <text x="110" y="120" textAnchor="middle" fontSize="18" fontWeight="700" fill="#1d2433" letterSpacing="2">CINA</text>
-                      <path d="M110 132 L155 165 L110 188 L65 165 Z" fill="#1d2433" />
-                      <text x="110" y="170" textAnchor="middle" fontSize="26" fontWeight="800" fill="#fff">Y</text>
+                      <circle cx="110" cy="110" r="100" fill="none" stroke="#1A3A33" strokeWidth="7" />
+                      <circle cx="110" cy="110" r="80" fill="none" stroke="#1A3A33" strokeWidth="2" />
+                      <text x="110" y="72" textAnchor="middle" fontSize="20" fontWeight="700" fill="#1A3A33" letterSpacing="2">{sceauLignes[0]}</text>
+                      <text x="110" y="95" textAnchor="middle" fontSize="18" fontWeight="700" fill="#1A3A33" letterSpacing="2">{sceauLignes[1]}</text>
+                      <text x="110" y="120" textAnchor="middle" fontSize="18" fontWeight="700" fill="#1A3A33" letterSpacing="2">{sceauLignes[2]}</text>
+                      <path d="M110 132 L155 165 L110 188 L65 165 Z" fill="#1A3A33" />
+                      <text x="110" y="170" textAnchor="middle" fontSize="26" fontWeight="800" fill="#fff">{sceauInitiale}</text>
                     </svg>
                   </div>
                   <span className="attestation-school">{etablissement.nom}</span>
@@ -311,10 +315,10 @@ export default function Palmares() {
 
             <div className="attestation-print-action no-print">
               <button type="button" className="btn btn--ghost btn--sm" onClick={() => window.print()}>
-                🖨️ Imprimer
+                Imprimer
               </button>
               <button type="button" className="btn btn--primary btn--sm" onClick={handleDownloadAttestationPdf}>
-                📄 Télécharger PDF
+                Télécharger PDF
               </button>
             </div>
           </div>

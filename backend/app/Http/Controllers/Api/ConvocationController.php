@@ -31,6 +31,9 @@ class ConvocationController extends Controller
     {
         $convocation = Convocation::create($request->validated());
 
+        app(\App\Services\NotificationParentsService::class)
+            ->notifierConvocation($convocation->etudiant, $convocation->load('etudiant'));
+
         return response()->json([
             'message' => 'Convocation enregistrée avec succès.',
             'convocation' => $convocation->load('etudiant:id,nom,prenom,matricule,classe_id', 'etudiant.classe:id,nom'),

@@ -1,0 +1,16 @@
+{
+  "name": "Espace scolaire",
+  "short_name": "École",
+  "description": "Suivi de la scolarité, notes, présences et échanges avec l’établissement.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F3F0E9",
+  "theme_color": "#1F5C4A",
+  "lang": "fr",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

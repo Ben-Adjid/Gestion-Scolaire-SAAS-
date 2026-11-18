@@ -140,9 +140,9 @@ export default function Convocations() {
                       <td className="cell-muted">{item.motif || '—'}</td>
                       <td className="cell-actions">
                         <button type="button" className="btn btn--ghost btn--sm" onClick={() => setDoc(item)}>
-                          🖨️ Imprimer
+                          Imprimer
                         </button>
-                        <button type="button" className="icon-btn" title="Supprimer" onClick={() => remove(item)}>🗑️</button>
+                        <button type="button" className="btn btn--ghost btn--sm" onClick={() => remove(item)}>Supprimer</button>
                       </td>
                     </tr>
                   ))}
@@ -248,7 +248,7 @@ export default function Convocations() {
 
             <div className="attestation-print-action no-print">
               <button type="button" className="btn btn--primary btn--sm" onClick={() => window.print()}>
-                🖨️ Imprimer / PDF
+                Imprimer / PDF
               </button>
             </div>
           </div>

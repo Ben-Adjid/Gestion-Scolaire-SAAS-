@@ -10,12 +10,16 @@ import Alert from '../components/Alert'
 import { useToast } from '../components/Toast'
 import { Field, Input, Select } from '../components/Field'
 import { ROLE_LABELS } from '../utils/constants'
+import PermissionsGrille from '../components/PermissionsGrille'
+import { useAuth } from '../context/AuthContext'
+import { useEtablissement } from '../context/EtablissementContext'
+import { aLaFonctionnalite } from '../utils/plans'
 
 const ROLES = Object.entries(ROLE_LABELS)
   .filter(([value]) => value !== 'super_admin')
   .map(([value, label]) => ({ value, label }))
 
-const EMPTY_FORM = { name: '', email: '', role: 'enseignant', password: '', enseignant_id: '' }
+const EMPTY_FORM = { name: '', email: '', telephone: '', role: 'enseignant', password: '', enseignant_id: '', permissions: [] }
 
 function roleLabel(value) {
   return ROLES.find((r) => r.value === value)?.label || value
@@ -34,6 +38,12 @@ function roleBadge(value) {
 
 export default function Utilisateurs() {
   const toast = useToast()
+  const { user: moi } = useAuth()
+  const { etablissement } = useEtablissement()
+  // Permissions personnalisées : VIP et plus. En Standard, les rôles sont fixes.
+  const permissionsOuvertes = aLaFonctionnalite(moi, etablissement, 'permissions_granulaires')
+  // Un proviseur ne gère pas les comptes de direction (admin, proviseur) : le serveur le refuserait de toute façon.
+  const gereCompte = (cible) => moi?.role !== 'proviseur' || !['admin', 'proviseur', 'super_admin'].includes(cible.role)
   const [items, setItems] = useState([])
   const [meta, setMeta] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -90,6 +100,8 @@ export default function Utilisateurs() {
       role: item.role,
       password: '',
       enseignant_id: item.enseignant_id || '',
+      telephone: item.telephone || '',
+      permissions: (item.permissions || []).map((p) => p.code),
     })
     setFormErrors({})
     setModalOpen(true)
@@ -196,12 +208,14 @@ export default function Utilisateurs() {
                           : '—'}
                       </td>
                       <td className="cell-actions">
-                        <button type="button" className="icon-btn" title="Modifier" onClick={() => openEdit(item)}>
-                          ✏️
-                        </button>
-                        <button type="button" className="icon-btn" title="Supprimer" onClick={() => setDeleting(item)}>
-                          🗑️
-                        </button>
+                        {gereCompte(item) ? (
+                          <>
+                            <button type="button" className="btn btn--ghost btn--sm" onClick={() => openEdit(item)}>Modifier</button>
+                            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setDeleting(item)}>Supprimer</button>
+                          </>
+                        ) : (
+                          <span className="muted">Direction</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -229,11 +243,20 @@ export default function Utilisateurs() {
         }
       >
         <form id="user-form" onSubmit={handleSubmit} noValidate>
+          <h3 className="form-titre-section">Identité du compte</h3>
           <Field label="Nom complet" htmlFor="name" required error={formErrors.name?.[0]}>
             <Input id="name" name="name" value={form.name} onChange={handleChange} placeholder="Ex : Amadou Sy" error={formErrors.name?.[0]} />
           </Field>
           <Field label="Adresse e-mail" htmlFor="email" required error={formErrors.email?.[0]}>
             <Input id="email" type="email" name="email" value={form.email} onChange={handleChange} placeholder="user@ecole.com" error={formErrors.email?.[0]} />
+          </Field>
+          <Field
+            label="Téléphone (WhatsApp)"
+            htmlFor="telephone"
+            error={formErrors.telephone?.[0]}
+            hint="Pour les comptes parents : reçoivent les absences et convocations sur WhatsApp."
+          >
+            <Input id="telephone" name="telephone" value={form.telephone} onChange={handleChange} placeholder="+235 66 00 00 00" error={formErrors.telephone?.[0]} />
           </Field>
           <div className="form-grid">
             <Field label="Rôle" htmlFor="role" required error={formErrors.role?.[0]}>
@@ -263,6 +286,12 @@ export default function Utilisateurs() {
               />
             </Field>
           </div>
+          {permissionsOuvertes && !['admin', 'super_admin'].includes(form.role) && (
+            <PermissionsGrille
+              value={form.permissions}
+              onChange={(codes) => setForm((prev) => ({ ...prev, permissions: codes }))}
+            />
+          )}
           {form.role === 'enseignant' && (
             <Field label="Associer à un enseignant" htmlFor="enseignant_id" error={formErrors.enseignant_id?.[0]}>
               <Select id="enseignant_id" name="enseignant_id" value={form.enseignant_id} onChange={handleChange}>

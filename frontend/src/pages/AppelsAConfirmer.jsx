@@ -82,7 +82,7 @@ export default function AppelsAConfirmer() {
                           onClick={() => confirmer(item)}
                           disabled={confirmingId === item.id}
                         >
-                          {confirmingId === item.id ? 'Confirmation…' : "✅ Confirmer l'appel"}
+                          {confirmingId === item.id ? 'Confirmation…' : "Confirmer l'appel"}
                         </button>
                       </td>
                     </tr>

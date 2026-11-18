@@ -48,7 +48,9 @@ class Etudiant extends Model
         $prefix = (string) (Etablissement::where('id', $tenantId)->value('prefixe_matricule') ?: 'LIC');
         $year = now()->format('Y');
 
-        $last = static::where('matricule', 'like', $prefix.'-'.$year.'-%')
+        // Le matricule est unique sur toute la base : la recherche ignore le cloisonnement par établissement,
+        // sinon deux écoles avec le même préfixe reçoivent le même numéro.
+        $last = static::withoutGlobalScopes()->where('matricule', 'like', $prefix.'-'.$year.'-%')
             ->orderByDesc('matricule')
             ->value('matricule');
 
@@ -61,7 +63,7 @@ class Etudiant extends Model
         do {
             $matricule = sprintf('%s-%s-%04d', $prefix, $year, $next);
             $next++;
-        } while (static::where('matricule', $matricule)->exists());
+        } while (static::withoutGlobalScopes()->where('matricule', $matricule)->exists());
 
         return $matricule;
     }

@@ -13,6 +13,7 @@ export default function Pointer() {
   const toast = useToast()
   const [cours, setCours] = useState([])
   const [code, setCode] = useState(null)
+  const [maintenant, setMaintenant] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [pointingId, setPointingId] = useState(null)
@@ -41,6 +42,7 @@ export default function Pointer() {
       const res = await pointagesApi.aujourdhui()
       setCours(res.data.cours)
       setCode(res.data.code)
+      setMaintenant(res.data.maintenant)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -100,12 +102,26 @@ export default function Pointer() {
 
       {code && (
         <div className="info-panel" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span>🔑 Votre code de pointage :</span>
+          <span>Votre code de pointage :</span>
           <span className="badge badge--neutral" style={{ fontSize: 16, fontWeight: 700 }}>
             {code}
           </span>
         </div>
       )}
+
+      <div className="info-panel" style={{ marginBottom: 16 }}>
+        <strong>Comment pointer ?</strong>
+        <ol style={{ margin: '8px 0 0 18px', lineHeight: 1.6 }}>
+          <li>Repérez votre cours ci-dessous.</li>
+          <li>Le bouton <strong>Pointer</strong> apparaît 15 minutes avant le début du cours et jusqu'à 15 minutes après.</li>
+          <li>Cliquez sur le bouton, puis autorisez la localisation si le navigateur la demande.</li>
+        </ol>
+        {maintenant && (
+          <p className="field-hint" style={{ marginTop: 8 }}>
+            Heure actuelle (serveur) : <strong>{maintenant}</strong>
+          </p>
+        )}
+      </div>
 
       <div className="card">
         <div className="card-body">
@@ -114,12 +130,12 @@ export default function Pointer() {
           ) : cours.length === 0 ? (
             <EmptyState
               title="Aucun cours aujourd'hui"
-              description="Vous n'avez aucun cours programmé aujourd'hui."
+              description="Votre emploi du temps ne contient aucun cours pour aujourd'hui. Si c'est une erreur, demandez à l'administration de vérifier votre emploi du temps."
             />
           ) : (
             <div className="pointer-list">
               {cours.map((c) => (
-                <div key={c.emploi_du_temps_id} className={`pointer-course ${c.pointage ? 'pointer-course--done' : ''}`}>
+                <div key={c.emploi_du_temps_id} className={`pointer-course ${c.etat === 'pointe' ? 'pointer-course--done' : ''}`}>
                   <div className="pointer-course-info">
                     <strong>{c.matiere}</strong>
                     <span className="muted">
@@ -127,21 +143,26 @@ export default function Pointer() {
                     </span>
                   </div>
                   <div className="pointer-course-action">
-                    {c.pointage ? (
+                    {c.etat === 'pointe' && (
                       <span className={`badge ${c.pointage.statut === 'retard' ? 'badge--amber' : 'badge--success'}`}>
                         {c.pointage.statut === 'retard' ? 'Pointé en retard' : 'Pointé à l\'heure'} • {c.pointage.heure}
                       </span>
-                    ) : c.pointable ? (
+                    )}
+                    {c.etat === 'ouvert' && (
                       <button
                         type="button"
                         className="btn btn--primary"
                         onClick={() => pointer(c)}
                         disabled={pointingId === c.emploi_du_temps_id}
                       >
-                        {pointingId === c.emploi_du_temps_id ? 'Pointage…' : '📍 Pointer'}
+                        {pointingId === c.emploi_du_temps_id ? 'Pointage…' : 'Pointer maintenant'}
                       </button>
-                    ) : (
-                      <span className="muted">Fenêtre : {c.fenetre}</span>
+                    )}
+                    {c.etat === 'a_venir' && (
+                      <span className="muted">Pointage ouvert à partir de {c.ouverture}</span>
+                    )}
+                    {c.etat === 'manque' && (
+                      <span className="badge badge--danger">Non pointé (fenêtre fermée à {c.fermeture})</span>
                     )}
                   </div>
                 </div>

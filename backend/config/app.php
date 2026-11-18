@@ -34,6 +34,9 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    // Adresse de l'interface (liens dans les e-mails). En production : l'adresse publique du site.
+    'frontend_url' => env('FRONTEND_URL', 'http://localhost:5173'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

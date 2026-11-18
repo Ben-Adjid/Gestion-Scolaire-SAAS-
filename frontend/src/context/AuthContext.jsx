@@ -35,6 +35,10 @@ export function AuthProvider({ children }) {
 
   const login = async (credentials) => {
     const res = await authApi.login(credentials)
+    // Double authentification : le serveur attend le code à six chiffres avant d'ouvrir la session.
+    if (res.status === 202 && res.data?.requires_2fa) {
+      return { requires2fa: true }
+    }
     localStorage.setItem('token', res.data.token)
     if (res.data.user) {
       localStorage.setItem('user', JSON.stringify(res.data.user))

@@ -190,9 +190,7 @@ export default function EmploiDuTemps() {
             )}
             {!isTeacher && mode === 'classe' && (
               <div className="edt-pagination">
-                <button type="button" className="btn btn--ghost btn--sm" onClick={goPrev} disabled={classeIndex <= 0}>
-                  ◀
-                </button>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={goPrev} disabled={classeIndex <= 0}>Classe précédente</button>
                 <span className="edt-pagination-label">
                   {classes[classeIndex]
                     ? `${classes[classeIndex].nom} (${classes[classeIndex].niveau})`
@@ -204,9 +202,7 @@ export default function EmploiDuTemps() {
                   className="btn btn--ghost btn--sm"
                   onClick={goNext}
                   disabled={classeIndex >= classes.length - 1}
-                >
-                  ▶
-                </button>
+                >Classe suivante</button>
               </div>
             )}
             {!isTeacher && mode === 'enseignant' && (
@@ -218,7 +214,7 @@ export default function EmploiDuTemps() {
               </Select>
             )}
             <button type="button" className="btn btn--ghost no-print" onClick={() => window.print()}>
-              🖨️ Imprimer
+              Imprimer
             </button>
           </>
         }
@@ -262,7 +258,7 @@ export default function EmploiDuTemps() {
                               <button
                                 type="button"
                                 className="edt-course"
-                                style={{ borderLeftColor: cell.matiere?.couleur || '#4f46e5' }}
+                                style={{ borderLeftColor: cell.matiere?.couleur || '#1F5C4A' }}
                                 onClick={() => openCell(jour, creneau)}
                                 title={`${cell.matiere?.nom} — ${cell.enseignant ? cell.enseignant.prenom + ' ' + cell.enseignant.nom : ''}`}
                               >

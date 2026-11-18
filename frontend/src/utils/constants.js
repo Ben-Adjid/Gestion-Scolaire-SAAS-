@@ -9,7 +9,8 @@ export const TRIMESTRES_ANNUEL = [
   { value: 0, label: 'Bilan annuel' },
 ]
 
-export const MEDALS = ['🥇', '🥈', '🥉']
+// Rangs du palmarès, sans pictogramme.
+export const MEDALS = ['1er', '2e', '3e']
 
 export const TYPES_NOTE = ['devoir', 'composition', 'examen']
 

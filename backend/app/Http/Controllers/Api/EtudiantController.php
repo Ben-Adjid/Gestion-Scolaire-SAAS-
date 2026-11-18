@@ -15,7 +15,8 @@ class EtudiantController extends Controller
     public function __construct()
     {
         $this->middleware('auth:sanctum');
-        $this->middleware('role:admin,censeur,proviseur')->except(['index', 'show', 'lookup']);
+        $this->middleware('role:admin,censeur,proviseur,secretaire')->except(['index', 'show', 'lookup', 'doublons']);
+        $this->middleware('role:admin,proviseur,censeur,secretaire')->only(['doublons']);
         $this->middleware('role:admin,proviseur,censeur,cpe,enseignant,secretaire,gestionnaire,agent_comptable')->only(['index', 'show', 'lookup']);
     }
 
@@ -44,9 +45,33 @@ class EtudiantController extends Controller
 
     public function store(EtudiantRequest $request)
     {
-        $etudiant = Etudiant::create($request->validated());
+        $data = $request->validated();
+        $confirmerDoublon = $data['confirmer_doublon'] ?? false;
+        unset($data['confirmer_doublon']);
+
+        $doublons = $this->trouverDoublons($data);
+        if ($doublons->isNotEmpty() && ! $confirmerDoublon) {
+            return response()->json([
+                'message' => 'Un ou plusieurs élèves avec une identité proche existent déjà.',
+                'code' => 'doublon_potentiel',
+                'doublons' => $doublons->map(fn (Etudiant $eleve) => [
+                    'id' => $eleve->id,
+                    'nom' => $eleve->nom,
+                    'prenom' => $eleve->prenom,
+                    'matricule' => $eleve->matricule,
+                    'date_naissance' => $eleve->date_naissance?->toDateString(),
+                    'classe' => $eleve->classe?->nom,
+                ])->values(),
+            ], 409);
+        }
+
+        $etudiant = Etudiant::create($data);
 
         AuditLogger::log(auth()->user(), 'create', 'Etudiant', $etudiant->id, "Nouvel étudiant : {$etudiant->nom} {$etudiant->prenom}");
+        if ($doublons->isNotEmpty()) {
+            AuditLogger::log(auth()->user(), 'creation_doublon_confirmee', 'Etudiant', $etudiant->id,
+                "Création confirmée malgré un doublon potentiel.");
+        }
 
         return response()->json($etudiant, 201);
     }
@@ -78,6 +103,43 @@ class EtudiantController extends Controller
         ]);
     }
 
+    public function doublons(Request $request)
+    {
+        $data = $request->validate([
+            'nom' => 'required|string|max:100',
+            'prenom' => 'required|string|max:100',
+            'date_naissance' => 'nullable|date',
+            'classe_id' => 'nullable|integer',
+        ]);
+
+        return response()->json([
+            'doublons' => $this->trouverDoublons($data)
+                ->map(fn (Etudiant $eleve) => [
+                    'id' => $eleve->id,
+                    'nom' => $eleve->nom,
+                    'prenom' => $eleve->prenom,
+                    'matricule' => $eleve->matricule,
+                    'date_naissance' => $eleve->date_naissance?->toDateString(),
+                    'classe' => $eleve->classe?->nom,
+                ])->values(),
+        ]);
+    }
+
+    private function trouverDoublons(array $data)
+    {
+        $nom = mb_strtolower(trim($data['nom']));
+        $prenom = mb_strtolower(trim($data['prenom']));
+
+        return Etudiant::query()
+            ->with('classe:id,nom')
+            ->whereRaw('LOWER(nom) = ?', [$nom])
+            ->whereRaw('LOWER(prenom) = ?', [$prenom])
+            ->when($data['date_naissance'] ?? null, fn ($query, $date) => $query->whereDate('date_naissance', $date))
+            ->when(! ($data['date_naissance'] ?? null) && ($data['classe_id'] ?? null), fn ($query) => $query->where('classe_id', $data['classe_id']))
+            ->limit(10)
+            ->get();
+    }
+
     public function show(Request $request, Etudiant $etudiant)
     {
         $this->assertPeutVoir($request->user(), $etudiant);
@@ -101,7 +163,9 @@ class EtudiantController extends Controller
 
     public function update(EtudiantRequest $request, Etudiant $etudiant)
     {
-        $etudiant->update($request->validated());
+        $data = $request->validated();
+        unset($data['confirmer_doublon']);
+        $etudiant->update($data);
 
         AuditLogger::log(auth()->user(), 'update', 'Etudiant', $etudiant->id, "Mise à jour de l'étudiant");
 

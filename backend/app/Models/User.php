@@ -15,7 +15,7 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, BelongsToTenant;
 
-    public const ROLES = ['super_admin', 'admin', 'proviseur', 'censeur', 'cpe', 'enseignant', 'secretaire', 'gestionnaire', 'agent_comptable', 'responsable_it'];
+    public const ROLES = ['super_admin', 'admin', 'proviseur', 'censeur', 'cpe', 'enseignant', 'secretaire', 'gestionnaire', 'agent_comptable', 'responsable_it', 'parent'];
 
     /**
      * The attributes that are mass assignable.
@@ -28,6 +28,7 @@ class User extends Authenticatable
         'password',
         'role',
         'enseignant_id',
+        'telephone',
         'etablissement_id',
     ];
 
@@ -53,6 +54,26 @@ class User extends Authenticatable
     public function enseignant(): BelongsTo
     {
         return $this->belongsTo(Enseignant::class);
+    }
+
+    public function enfants(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Etudiant::class, 'parent_etudiant', 'user_id', 'etudiant_id')->withPivot('lien')->withTimestamps();
+    }
+
+    public function permissions(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(\App\Models\Permission::class, 'permission_user');
+    }
+
+    /** Administrateurs : tous les droits. Les autres comptes : seulement les permissions accordées. */
+    public function hasPermission(string $code): bool
+    {
+        if (in_array($this->role, ['super_admin', 'admin'], true)) {
+            return true;
+        }
+
+        return $this->permissions()->where('code', $code)->exists();
     }
 
     public function isSuperAdmin(): bool

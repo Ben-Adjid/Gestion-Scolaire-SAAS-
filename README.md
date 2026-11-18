@@ -29,8 +29,8 @@ Un systeme complet pour gerer tous les aspects d'un etablissement scolaire:
 |-------|-----------|
 | Frontend | React 18 + Vite + TailwindCSS |
 | Backend | Laravel 12 + Sanctum |
-| Database | MySQL (local, port 3307 en développement) |
-| Deployment | Local (php artisan serve + npm run dev) — Docker non utilisé |
+| Database | SQLite par défaut en développement, MySQL configurable |
+| Deployment | API Laravel + frontend Vite ; aucun fichier Docker n'est fourni |
 | Security | RBAC 10 rôles, journal d'audit, verrouillage des notes |
 
 ---
@@ -39,7 +39,7 @@ Un systeme complet pour gerer tous les aspects d'un etablissement scolaire:
 
 ### Securite
 - Authentication avec Sanctum & JWT
-- Double authentification : à venir (non implémentée)
+- Double authentification TOTP disponible par compte
 - 10 rôles d'accès (Super admin, Admin, Proviseur, Censeur, CPE, Enseignant, Secrétaire, Gestionnaire, Agent comptable, Responsable IT)
 - Audit logging de toutes les operations
 - Rate limiting (5 attempts/min on login)
@@ -47,7 +47,8 @@ Un systeme complet pour gerer tous les aspects d'un etablissement scolaire:
 
 ### Gestion Academique
 - CRUD Complet: Classes, Etudiants, Professeurs, Matieres
-- Saisie de notes (individuelle & groupee)
+- Saisie de notes individuelle et groupée (saisie rapide clavier et modèles de commentaires réutilisables)
+- Avertissement de doublons potentiels à la création d'un élève, avec confirmation explicite et journalisée
 - Suivi des absences avec auto-escalade
 - Emploi du temps & creneaux
 - Bulletins scolaires avec ranking
@@ -64,54 +65,51 @@ Un systeme complet pour gerer tous les aspects d'un etablissement scolaire:
 ### Finance
 - Gestion des frais scolaires
 - Enregistrement des paiements (4 modes)
-- Paiements en ligne Stripe : à venir (non implémentés)
-- Reçus de paiement : à venir (non implémentés)
+- Paiements d'abonnement par Mobile Money ou virement : demande puis validation manuelle par la plateforme
+- Reçus de paiement des frais scolaires et d'abonnement
+- Paiement automatisé en ligne : non activé avant le choix du prestataire et l'intégration de son protocole
 - Tracking des arrieres
 
 ### Communication
 - Messagerie unifiee (utilisateur ↔ utilisateur)
 - Annonces par classe
-- Notifications SMS/Email : à venir (service présent, envoi non configuré)
+- Notifications d'absence et de convocation aux parents incluses en Standard ; l'e-mail nécessite un SMTP opérationnel et WhatsApp ses identifiants
 - Suivi des messages lus
+
+Les relances individuelles des frais impayés et les notifications parentales sont incluses en Standard. La fiche de suivi élève (notes, absences et retards) est également disponible aux rôles de direction, censeur et CPE.
 
 ---
 
 ## Quick Start
 
 ### Prerequisites
-- PHP 8.2+, Composer, Node.js, MySQL
+- PHP 8.2+, Composer, Node.js 20+
 - Git
 
-### Installation (5 minutes)
+### Installation locale
 
 ```bash
 # 1. Cloner
 git clone <url>
 cd gestscolairecrud-main
 
-# 2. Configuration
-cp .env.example .env
+# 2. Backend (terminal 1)
+cd backend
+copy .env.example .env
+composer install
+php artisan key:generate
+php artisan migrate --seed
+php artisan serve --host=0.0.0.0 --port=8000
 
-# 3. Demarrer
-docker-compose up -d
-
-# 4. Migrations
-docker-compose exec api php artisan migrate --seed
-
-# 5. Acceder
-# Frontend: http://localhost:3000
+# 3. Frontend (terminal 2, depuis la racine du dépôt)
+cd frontend
+npm ci
+npm run dev
+# Frontend: http://localhost:5173
 # API: http://localhost:8000
 ```
 
-### Test Credentials
-
-```
-Email: admin@test.com
-Password: password
-Role: Admin
-```
-
-Voir QUICKSTART.md pour plus de details.
+SQLite est le choix de développement par défaut. Pour MySQL, configurez les variables `DB_*` dans `backend/.env` avant les migrations. Les comptes disponibles dépendent des seeders exécutés.
 
 ---
 
@@ -119,7 +117,7 @@ Voir QUICKSTART.md pour plus de details.
 
 ### Stack
 
-Frontend (React 18 + Vite) -> Backend (Laravel 12 API) -> Database (MySQL)
+Frontend (React 18 + Vite) -> Backend (Laravel 12 API) -> Database (SQLite ou MySQL)
 
 ### API Endpoints: 30+
 
@@ -141,11 +139,11 @@ Voir API_REFERENCE.md pour documentation complete.
 ```
 .
 ├── backend/                    # Laravel API
-│   ├── app/Models/            # 15 modeles Eloquent
-│   ├── app/Http/Controllers/  # 15 controleurs API
+│   ├── app/Models/            # Modèles Eloquent
+│   ├── app/Http/Controllers/  # Contrôleurs API
 │   ├── app/Services/          # Logique metier
 │   ├── database/
-│   │   ├── migrations/        # 12 migrations
+│   │   ├── migrations/        # Migrations de schéma
 │   │   ├── factories/         # Factories de test
 │   │   └── seeders/           # Donnees initiales
 │   └── routes/api.php         # Routes API
@@ -155,12 +153,9 @@ Voir API_REFERENCE.md pour documentation complete.
 │   ├── src/hooks/             # useApi, useAuth
 │   └── src/pages/             # Pages
 │
-├── docker-compose.yml         # Stack complete
-├── .env.example               # Configuration
-├── QUICKSTART.md              # Guide de demarrage
-├── API_REFERENCE.md           # Documentation API
-├── DEPLOYMENT.md              # Guide de deploiement
-└── PROJECT_STATUS.md          # Rapport complet
+├── backend/.env.example       # Configuration API
+├── frontend/package.json      # Scripts frontend
+└── README.md                  # Guide et limites d'exploitation
 ```
 
 ---
@@ -182,7 +177,7 @@ Voir API_REFERENCE.md pour documentation complete.
 
 ### Implementation
 - JWT Authentication (24h expiration)
-- Double authentification : à venir
+- Double authentification TOTP disponible par compte
 - 10 rôles RBAC avec permissions par rôle et périmètre enseignant
 - Audit logging de toutes les operations sensibles
 - Rate limiting (5 attempts/min on login)
@@ -196,50 +191,39 @@ Voir DEPLOYMENT.md pour checklist complète avant production.
 
 ---
 
-## Deploiement
+## Paiements d'abonnement
 
-### Local (Development)
-```bash
-docker-compose up -d
-docker-compose exec api php artisan migrate --seed
-# Acceder: http://localhost:3000
-```
+Le renouvellement manuel permet à un administrateur d'établissement de choisir une formule, d'afficher les coordonnées configurées, de transmettre une référence et un justificatif privé. Le super-administrateur vérifie puis approuve ou refuse la demande. L'approbation seule active le plan et inscrit le paiement.
 
-### Production
-```bash
-docker-compose -f docker-compose.prod.yml build
-docker-compose -f docker-compose.prod.yml up -d
-docker-compose -f docker-compose.prod.yml exec api php artisan migrate --force
-```
+Configurez les coordonnées dans `backend/.env` à partir de `backend/.env.example` :
 
-Voir DEPLOYMENT.md pour instructions detaillees.
+- `PAIEMENT_MOBILE_LIBELLE`, `PAIEMENT_MOBILE_NUMERO`, `PAIEMENT_MOBILE_TITULAIRE`
+- `PAIEMENT_BANQUE_NOM`, `PAIEMENT_BANQUE_TITULAIRE`, `PAIEMENT_BANQUE_COMPTE`, `PAIEMENT_BANQUE_IBAN`, `PAIEMENT_BANQUE_BIC`
+- `PAIEMENT_DEVISE` (XOF par défaut)
+
+Les coordonnées vides désactivent le mode correspondant. La passerelle hébergée et son webhook ne doivent pas être considérés opérationnels avant le choix du prestataire, l'intégration de son protocole spécifique et la configuration de ses secrets. Ne stockez aucun secret de production dans le dépôt.
+
+## Déploiement
+
+Ce dépôt ne contient pas de configuration Docker ni de procédure de déploiement production vérifiée. Avant mise en production, configurez HTTPS, la base de données, les sauvegardes, le stockage privé des fichiers, SMTP, les tâches planifiées et les identifiants des fournisseurs réellement utilisés ; exécutez les migrations et toutes les suites de tests dans un environnement de préproduction. Les étapes locales ci-dessus ne constituent pas une certification de production.
 
 ---
 
 ## Support
 
 ### Troubleshooting
-- Port already in use: Changer port dans docker-compose.yml
-- DB connection error: Redemarrer postgres service
-- Migration fails: Executer php artisan migrate:reset
-- API 401: Verifier token JWT dans Authorization header
+- Port déjà utilisé : modifier le port de `php artisan serve` ou de Vite.
+- Erreur de base de données : vérifier `DB_CONNECTION` et les paramètres `DB_*` dans `backend/.env`.
+- Migration échouée : lire l'erreur et corriger la configuration avant toute nouvelle tentative ; ne pas réinitialiser une base contenant des données.
+- API 401 : vérifier la session Sanctum et l'URL de l'API configurée pour le frontend.
 
 Voir QUICKSTART.md pour solutions completes.
 
 ---
 
-## Checklist de Livraison
+## État de livraison
 
-- [x] Phase 1: Core System
-- [x] Phase 2: Intelligence
-- [x] Phase 3: Finance
-- [x] Phase 4: Infrastructure
-- [x] Security: RBAC par rôle, journal d'audit (2FA à venir)
-- [x] API: 30+ endpoints documented
-- [x] Frontend: React components
-- [x] Tests: Unit & Feature tests
-- [x] Documentation: Complete guides
-- [x] Performance: Optimized
+Le dépôt contient des modules métier, des contrôles d'accès, des tests et une procédure de paiement manuel des abonnements. La présence de tests ne garantit pas qu'ils passent dans chaque environnement. La passerelle de paiement automatisée, les coordonnées réelles, la configuration des services de production et la validation complète en préproduction restent à faire ; voir la section Déploiement.
 
 ---
 
@@ -252,9 +236,9 @@ Proprietary - Tous droits reserves
 ## Commencer
 
 1. Lire QUICKSTART.md
-2. Executer docker-compose up -d
-3. Acceder a http://localhost:3000
-4. Se connecter avec admin@test.com / password
-5. Consulter API_REFERENCE.md pour fonctionnalites avancees
+2. Suivre les commandes d'installation locale ci-dessus
+3. Configurer les coordonnées de paiement souhaitées hors du dépôt
+4. Exécuter les suites de tests en préproduction
+5. Choisir et intégrer un prestataire avant d'activer le paiement hébergé
 
-**Systeme pret pour production!** 🚀
+**Le code ne constitue pas à lui seul une certification de préparation à la production.**

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { classesApi, dossiersApi } from '../api/endpoints'
+import { classesApi, dossiersApi, telecharger } from '../api/endpoints'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
 import Spinner from '../components/Spinner'
@@ -111,6 +111,15 @@ export default function DossiersExamen() {
     }
   }
 
+  const telechargerDocument = async (etudiantId, type) => {
+    try {
+      const res = await dossiersApi.fichier(etudiantId, type)
+      telecharger(res.data, type)
+    } catch (err) {
+      toast.error(`Téléchargement impossible : ${err.message}`)
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -129,21 +138,18 @@ export default function DossiersExamen() {
       {stats && (
         <div className="stat-grid stat-grid--3">
           <div className="stat-card stat-card--indigo">
-            <span className="stat-icon">📁</span>
             <div className="stat-body">
               <span className="stat-value">{stats.total}</span>
               <span className="stat-label">Candidats</span>
             </div>
           </div>
           <div className="stat-card stat-card--green">
-            <span className="stat-icon">✅</span>
             <div className="stat-body">
               <span className="stat-value">{stats.complets}</span>
               <span className="stat-label">Dossiers complets</span>
             </div>
           </div>
           <div className="stat-card stat-card--rose">
-            <span className="stat-icon">⚠️</span>
             <div className="stat-body">
               <span className="stat-value">{stats.incomplets}</span>
               <span className="stat-label">Dossiers incomplets</span>
@@ -246,7 +252,7 @@ export default function DossiersExamen() {
                 {doc.key !== 'paiement' && (
                   <>
                     <label className="photo-upload-label">
-                      📎 {form[`${doc.key}_path`] ? 'Remplacer' : 'Téléverser'}
+                      {form[`${doc.key}_path`] ? 'Remplacer' : 'Téléverser'}
                       <input
                         type="file"
                         accept={doc.key === 'photos_identite' ? 'image/*' : 'image/*,.pdf'}
@@ -254,15 +260,15 @@ export default function DossiersExamen() {
                         style={{ display: 'none' }}
                       />
                     </label>
+                    {files[doc.key] && <span className="muted">{files[doc.key].name}</span>}
                     {form[`${doc.key}_path`] && (
-                      <a
+                      <button
+                        type="button"
                         className="dossier-file-link"
-                        href={`/${form[`${doc.key}_path`]}`}
-                        target="_blank"
-                        rel="noreferrer"
+                        onClick={() => telechargerDocument(editing.id, doc.key)}
                       >
-                        👁️ Voir
-                      </a>
+                        Télécharger
+                      </button>
                     )}
                   </>
                 )}

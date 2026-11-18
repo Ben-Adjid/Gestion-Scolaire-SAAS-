@@ -29,6 +29,10 @@ class AppelController extends Controller
             return response()->json(null);
         }
 
+        if (! TeacherScope::canAccessClasse($request->user(), (int) $classeId)) {
+            return response()->json(['message' => "Vous ne pouvez consulter l'appel que de vos classes."], 403);
+        }
+
         $appel = Appel::where('classe_id', $classeId)
             ->where('date', $date)
             ->with('user:id,name', 'validePar:id,name', 'confirmePar:id,name')
@@ -98,23 +102,45 @@ class AppelController extends Controller
 
         $etudiantIds = Etudiant::where('classe_id', $classeId)->pluck('id');
 
-        DB::transaction(function () use ($data, $date, $etudiantIds, $classeId, $user, $valider, $appel) {
-            Absence::whereIn('etudiant_id', $etudiantIds)
+        $nouvellesAbsences = [];
+
+        DB::transaction(function () use ($data, $date, $etudiantIds, $classeId, $user, $valider, $appel, &$nouvellesAbsences) {
+            // Les absences existantes sont mises à jour, pas recréées : une absence justifiée garde sa justification.
+            $existantes = Absence::whereIn('etudiant_id', $etudiantIds)
                 ->where('date', $date)
-                ->delete();
+                ->get()
+                ->keyBy('etudiant_id');
+
+            $presents = [];
 
             foreach ($data['presences'] as $item) {
+                $etudiantId = (int) $item['etudiant_id'];
+
                 if ($item['statut'] === 'present') {
+                    $presents[] = $etudiantId;
                     continue;
                 }
 
-                Absence::create([
-                    'etudiant_id' => $item['etudiant_id'],
+                $type = $item['statut'] === 'retard' ? 'retard' : 'absence';
+                $existante = $existantes->get($etudiantId);
+
+                if ($existante) {
+                    if ($existante->type !== $type) {
+                        $existante->update(['type' => $type]);
+                    }
+                    continue;
+                }
+
+                $nouvellesAbsences[] = Absence::create([
+                    'etudiant_id' => $etudiantId,
                     'date' => $date,
-                    'type' => $item['statut'] === 'retard' ? 'retard' : 'absence',
+                    'type' => $type,
                     'justifie' => false,
                 ]);
             }
+
+            // Élèves désormais présents : leur absence du jour est levée.
+            $existantes->only($presents)->each->delete();
 
             $appelData = [
                 'classe_id' => $classeId,
@@ -134,6 +160,14 @@ class AppelController extends Controller
                 Appel::create($appelData);
             }
         });
+
+        // Les parents sont prévenus une fois la présence enregistrée (les échecs d'envoi n'annulent jamais l'appel).
+        if ($valider) {
+            foreach ($nouvellesAbsences as $absence) {
+                $absence->load('etudiant');
+                app(\App\Services\NotificationParentsService::class)->notifierAbsence($absence->etudiant, $absence);
+            }
+        }
 
         $nbAbsents = collect($data['presences'])->where('statut', '!=', 'present')->count();
 

@@ -61,28 +61,24 @@ export default function ClassesExamen() {
 
       <div className="stat-grid stat-grid--4">
         <div className="stat-card stat-card--indigo">
-          <span className="stat-icon">🎓</span>
           <div className="stat-body">
             <span className="stat-value">{statistiques.total_eleves}</span>
             <span className="stat-label">Élèves en examen</span>
           </div>
         </div>
         <div className="stat-card stat-card--green">
-          <span className="stat-icon">✅</span>
           <div className="stat-body">
             <span className="stat-value">{statistiques.admis}</span>
             <span className="stat-label">Admis</span>
           </div>
         </div>
         <div className="stat-card stat-card--rose">
-          <span className="stat-icon">⚠️</span>
           <div className="stat-body">
             <span className="stat-value">{statistiques.non_admis}</span>
             <span className="stat-label">Non admis</span>
           </div>
         </div>
         <div className="stat-card stat-card--amber">
-          <span className="stat-icon">📈</span>
           <div className="stat-body">
             <span className="stat-value">{statistiques.taux_admission}%</span>
             <span className="stat-label">Taux d'admission (≥ {statistiques.seuil})</span>

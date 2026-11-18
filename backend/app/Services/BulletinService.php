@@ -97,18 +97,26 @@ class BulletinService
             ->with('matiere')
             ->get();
 
-        $matieres = $notes->groupBy('matiere_id')->map(function (Collection $notesMatiere) {
+        $statsClasse = $this->statsParMatiereClasse($etudiant, $trimestre);
+
+        $matieres = $notes->groupBy('matiere_id')->map(function (Collection $notesMatiere) use ($statsClasse) {
             $matiere = $notesMatiere->first()->matiere;
-            $coefficient = (float) ($matiere->coefficient ?? 1);
             $moyenne = round((float) $notesMatiere->avg('valeur'), 2);
+            $classe = $statsClasse[$matiere->id] ?? null;
 
             return [
-                'nom' => $matiere->nom,
-                'code' => $matiere->code,
-                'note' => $moyenne,
-                'appreciation' => $notesMatiere->last()->appreciation,
-                'coefficient' => $coefficient,
-                'points' => round($moyenne * $coefficient, 2),
+                'matiere' => [
+                    'id' => $matiere->id,
+                    'nom' => $matiere->nom,
+                    'code' => $matiere->code,
+                    'couleur' => $matiere->couleur,
+                    'coefficient' => (float) ($matiere->coefficient ?? 1),
+                ],
+                'moyenne' => $moyenne,
+                'moyenne_classe' => $classe['moyenne'] ?? null,
+                'min' => $classe['min'] ?? null,
+                'max' => $classe['max'] ?? null,
+                'appreciation' => $this->appreciationNote($moyenne),
             ];
         })->values()->all();
 
@@ -119,12 +127,39 @@ class BulletinService
             'etudiant' => $etudiant,
             'trimestre' => $trimestre,
             'matieres' => $matieres,
+            'effectif' => Etudiant::where('classe_id', $etudiant->classe_id)->count(),
             'moyenne_generale' => $moyenneGenerale,
             'appreciation_generale' => $mention['label'] ?? '',
             'mention' => $mention,
             'decision' => $this->decision($notes->isEmpty() ? null : $moyenneGenerale),
             'rang' => $this->rang($etudiant, $trimestre),
         ];
+    }
+
+    /**
+     * Pour chaque matière : moyenne de la classe, plus petite et plus grande moyenne d'élève.
+     */
+    private function statsParMatiereClasse(Etudiant $etudiant, ?int $trimestre): array
+    {
+        $ids = Etudiant::where('classe_id', $etudiant->classe_id)->pluck('id');
+
+        $parMatiere = \App\Models\Note::query()
+            ->whereIn('etudiant_id', $ids)
+            ->when($trimestre, fn ($q) => $q->where('trimestre', $trimestre))
+            ->get(['etudiant_id', 'matiere_id', 'valeur'])
+            ->groupBy('matiere_id');
+
+        $stats = [];
+        foreach ($parMatiere as $matiereId => $notes) {
+            $moyennesEleves = $notes->groupBy('etudiant_id')->map(fn ($n) => (float) $n->avg('valeur'));
+            $stats[(int) $matiereId] = [
+                'moyenne' => round($moyennesEleves->avg(), 2),
+                'min' => round($moyennesEleves->min(), 2),
+                'max' => round($moyennesEleves->max(), 2),
+            ];
+        }
+
+        return $stats;
     }
 
     private function moyennePonderee(Collection $notes): float

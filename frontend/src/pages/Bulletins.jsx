@@ -11,14 +11,14 @@ import { mentionColor } from '../utils/format'
 import { TRIMESTRES_ANNUEL } from '../utils/constants'
 import { downloadElementPdf, downloadBulletinsPdf } from '../utils/pdf'
 
-const ETABLISSEMENT = {
+// En-tête du bulletin : identité de l'établissement connecté (jamais une école codée en dur).
+const infosEtablissement = (e) => ({
   pays: 'RÉPUBLIQUE DU TCHAD',
-  slogan: 'Unité — Travail — Progrès',
-  ministere: 'Ministère de l’Éducation Nationale',
-  nom: 'Lycée Ibnou Cina',
-  adresse: 'BP 123, N’Djaména — Tél: +235 66 00 00 00',
-  logoText: 'LYCÉE IBNOU CINA',
-}
+  slogan: e.devise || 'Unité — Travail — Progrès',
+  ministere: e.ministere || '',
+  nom: e.nom || '',
+  adresse: [e.adresse, e.telephone ? `Tél : ${e.telephone}` : null].filter(Boolean).join(' — '),
+})
 // Fonction pour mapper le niveau à Collège ou Lycée
 const getNiveauLabel = (niveau) => {
   if (!niveau) return ''
@@ -83,6 +83,8 @@ const groupMatieresByDomaine = (matieres) => {
 export default function Bulletins() {
   const toast = useToast()
   const { etablissement } = useEtablissement()
+  const ETABLISSEMENT = infosEtablissement(etablissement)
+  const logoUrl = etablissement.logo_path ? `/${etablissement.logo_path}` : null
   const [classes, setClasses] = useState([])
   const [etudiants, setEtudiants] = useState([])
 
@@ -221,7 +223,7 @@ export default function Bulletins() {
               onClick={handleDownloadClasse}
               disabled={downloadingClasse || !classeId}
             >
-              {downloadingClasse ? 'Génération…' : '📄 Tous les bulletins de la classe'}
+              {downloadingClasse ? 'Génération…' : 'Tous les bulletins de la classe'}
             </button>
           </>
         }
@@ -241,9 +243,11 @@ export default function Bulletins() {
       ) : bulletin ? (
         <div className="bulletin-wrap">
           <div className="bulletin" id="bulletin-print">
-            <div className="bulletin-watermark" aria-hidden="true">
-              <img src="/logo.jpg" alt="Logo du lycée" className="bulletin-watermark-img" />
-            </div>
+            {logoUrl && (
+              <div className="bulletin-watermark" aria-hidden="true">
+                <img src={logoUrl} alt="" className="bulletin-watermark-img" />
+              </div>
+            )}
 
             <div className="bulletin-header">
               <div className="bulletin-topline">
@@ -252,9 +256,11 @@ export default function Bulletins() {
                   <span className="bulletin-country-sub">Unité — Travail — Progrès</span>
                 </div>
 
-                <div className="bulletin-emblem" aria-hidden="true">
-                  <img src="/logo.jpg" alt="Logo du lycée" className="bulletin-emblem-img" />
-                </div>
+                {logoUrl && (
+                  <div className="bulletin-emblem" aria-hidden="true">
+                    <img src={logoUrl} alt="" className="bulletin-emblem-img" />
+                  </div>
+                )}
 
                 <div className="bulletin-country-block bulletin-country-block--right">
                   <span className="bulletin-country">NATION — ÉDUCATION</span>
@@ -266,7 +272,7 @@ export default function Bulletins() {
               <div className="bulletin-ministry">{ETABLISSEMENT.ministere}</div>
 
               <div className="bulletin-school">
-                <img src="/logo.jpg" alt="Logo du lycée" className="bulletin-logo-img" />
+                {logoUrl && <img src={logoUrl} alt="" className="bulletin-logo-img" />}
                 <span className="bulletin-school-name">{ETABLISSEMENT.nom}</span>
               </div>
 
@@ -370,7 +376,7 @@ export default function Bulletins() {
                           <span className="matiere-cell">
                             <span
                               className="matiere-dot"
-                              style={{ background: row.matiere.couleur || '#4f46e5' }}
+                              style={{ background: row.matiere.couleur || '#1F5C4A' }}
                             />
                             {row.matiere.nom}
                           </span>
@@ -407,7 +413,7 @@ export default function Bulletins() {
                   <td>{bulletin.rang ? `Rang ${bulletin.rang}/${bulletin.effectif}` : '—'}</td>
                   <td>{bulletin.appreciation_generale || '—'}</td>
                   <td>{bulletin.mention ? bulletin.mention.label : '—'}</td>
-                  <td>{bulletin.mention ? 'Admis' : '—'}</td>
+                  <td>{bulletin.decision?.statut === 'admis' ? 'Admis' : (bulletin.decision?.label || '—')}</td>
                 </tr>
               </tbody>
             </table>
@@ -422,10 +428,12 @@ export default function Bulletins() {
                 <span className="summary-value">{bulletin.moyenne_generale ?? '—'}</span>
                 <span className="summary-label">Moyenne générale</span>
               </div>
-              <div className="summary-item">
-                <span className="summary-value">{bulletin.rang ? `${bulletin.rang}ᵉ` : '—'}</span>
-                <span className="summary-label">Rang / {bulletin.effectif}</span>
-              </div>
+              {etablissement.bulletin_afficher_rang !== false && (
+                <div className="summary-item">
+                  <span className="summary-value">{bulletin.rang ? `${bulletin.rang}ᵉ` : '—'}</span>
+                  <span className="summary-label">Rang / {bulletin.effectif}</span>
+                </div>
+              )}
               <div className="summary-item">
                 {bulletin.mention ? (
                   <span className={`mention-badge mention-badge--${mentionColor(bulletin.mention.key)}`}>
@@ -450,12 +458,19 @@ export default function Bulletins() {
               </div>
             </div>
 
+            {etablissement.bulletin_mention && (
+              <p className="bulletin-mention">{etablissement.bulletin_mention}</p>
+            )}
+
             <div className="bulletin-footer">
               <div className="signature-block">
                 <span>Visa du parent</span>
               </div>
               <div className="signature-block">
-                <span>Visa du directeur</span>
+                <span>
+                  {etablissement.bulletin_signature_titre || 'Le directeur'}
+                  {etablissement.bulletin_signature_nom ? ` — ${etablissement.bulletin_signature_nom}` : ''}
+                </span>
               </div>
               <div className="signature-block">
                 <span>Fait le {new Date().toLocaleDateString('fr-FR')}</span>
@@ -465,10 +480,10 @@ export default function Bulletins() {
 
           <div className="bulletin-actions no-print">
             <button type="button" className="btn btn--ghost" onClick={() => window.print()}>
-              🖨️ Imprimer
+              Imprimer
             </button>
             <button type="button" className="btn btn--primary" onClick={handleDownloadPdf}>
-              📄 Télécharger PDF
+              Télécharger PDF
             </button>
           </div>
         </div>

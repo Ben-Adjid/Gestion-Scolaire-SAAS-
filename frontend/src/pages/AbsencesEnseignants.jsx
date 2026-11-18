@@ -67,21 +67,18 @@ export default function AbsencesEnseignants() {
       {stats && (
         <div className="stat-grid stat-grid--3">
           <div className="stat-card stat-card--rose">
-            <span className="stat-icon">🚫</span>
             <div className="stat-body">
               <span className="stat-value">{stats.absences}</span>
               <span className="stat-label">Absences</span>
             </div>
           </div>
           <div className="stat-card stat-card--amber">
-            <span className="stat-icon">⏰</span>
             <div className="stat-body">
               <span className="stat-value">{stats.retards}</span>
               <span className="stat-label">Retards</span>
             </div>
           </div>
           <div className="stat-card stat-card--cyan">
-            <span className="stat-icon">⚠️</span>
             <div className="stat-body">
               <span className="stat-value">{stats.non_justifiees}</span>
               <span className="stat-label">Non justifiées</span>
@@ -126,9 +123,7 @@ export default function AbsencesEnseignants() {
                       </td>
                       <td className="cell-muted">{item.motif || '—'}</td>
                       <td className="cell-actions">
-                        <button type="button" className="icon-btn" title="Supprimer" onClick={() => confirmDelete(item)}>
-                          🗑️
-                        </button>
+                        <button type="button" className="btn btn--ghost btn--sm" onClick={() => confirmDelete(item)}>Supprimer</button>
                       </td>
                     </tr>
                   ))}

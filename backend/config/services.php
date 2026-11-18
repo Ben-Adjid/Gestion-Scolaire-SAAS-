@@ -31,6 +31,17 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    // Webhook de paiement : signature HMAC-SHA256 du corps brut, partagée avec le prestataire.
+    'paiement' => [
+        'secret' => env('PAIEMENT_WEBHOOK_SECRET'),
+    ],
+
+    // WhatsApp Cloud API (Meta) pour les relances d'abonnement.
+    'whatsapp' => [
+        'token' => env('WHATSAPP_TOKEN'),
+        'phone_id' => env('WHATSAPP_PHONE_ID'),
+    ],
+
     'openai' => [
         'api_key' => env('OPENAI_API_KEY'),
         'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),

@@ -30,10 +30,18 @@ client.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      const sessionActive = Boolean(localStorage.getItem('token'))
       localStorage.removeItem('token')
       localStorage.removeItem('user')
-      if (window.location.pathname !== '/login') {
+      const pagePublique = ['/accueil', '/login'].includes(window.location.pathname)
+      if (sessionActive && !pagePublique) {
         window.location.assign('/login')
+      }
+    }
+    // Abonnement expiré ou suspendu : on envoie l'utilisateur vers la page de blocage.
+    if (error.response?.status === 403 && error.response?.data?.code === 'subscription_inactive') {
+      if (window.location.pathname !== '/abonnement-suspendu') {
+        window.location.assign('/abonnement-suspendu')
       }
     }
     return Promise.reject(normalizeError(error))

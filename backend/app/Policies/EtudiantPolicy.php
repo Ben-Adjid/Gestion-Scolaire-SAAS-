@@ -15,7 +15,7 @@ class EtudiantPolicy
 
     public function create(User $user): bool
     {
-        return $user->hasAnyRole(['admin', 'censeur', 'proviseur']);
+        return $user->hasAnyRole(['admin', 'censeur', 'proviseur', 'secretaire']);
     }
 
     public function update(User $user, Etudiant $etudiant): bool

@@ -80,6 +80,23 @@ export default function Parametres() {
     }
   }
 
+  // Renseigne la position de l'école à partir de l'appareil de l'administrateur (sur place, pour le pointage).
+  const utiliserMaPosition = () => {
+    if (!navigator.geolocation) {
+      toast.error("La géolocalisation n'est pas disponible sur cet appareil.")
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setEtabForm((prev) => ({
+        ...prev,
+        latitude: pos.coords.latitude.toFixed(6),
+        longitude: pos.coords.longitude.toFixed(6),
+      })),
+      () => toast.error('Position refusée ou indisponible. Saisissez les coordonnées manuellement.'),
+      { enableHighAccuracy: true, timeout: 10000 }
+    )
+  }
+
   const handleEtabSubmit = async (e) => {
     e.preventDefault()
     setSavingEtab(true)
@@ -123,7 +140,7 @@ export default function Parametres() {
 
       <div className="card">
         <div className="card-header">
-          <h2>🏫 Établissement</h2>
+          <h2>Établissement</h2>
         </div>
         <div className="card-body">
           <form id="etablissement-form" onSubmit={handleEtabSubmit} noValidate>
@@ -145,6 +162,49 @@ export default function Parametres() {
                 </Field>
               ))}
             </div>
+
+            <h3 className="section-subtitle">Position de l'école (pointage des enseignants)</h3>
+            <p className="field-hint" style={{ marginBottom: 12 }}>
+              Sans position, le pointage est bloqué en production. Renseignez-la depuis l'école, avec le bouton ci-dessous.
+            </p>
+            <div className="form-grid">
+              <Field label="Latitude" htmlFor="etab-lat">
+                <Input id="etab-lat" name="latitude" type="number" step="any" value={etabForm?.latitude ?? ''} onChange={handleEtabChange} />
+              </Field>
+              <Field label="Longitude" htmlFor="etab-lng">
+                <Input id="etab-lng" name="longitude" type="number" step="any" value={etabForm?.longitude ?? ''} onChange={handleEtabChange} />
+              </Field>
+              <Field label="Rayon autorisé (mètres)" htmlFor="etab-rayon" hint="Entre 20 et 1000 m. Défaut : 150 m.">
+                <Input id="etab-rayon" name="rayon_pointage" type="number" min="20" max="1000" value={etabForm?.rayon_pointage ?? 150} onChange={handleEtabChange} />
+              </Field>
+            </div>
+            <button type="button" className="btn btn--ghost" onClick={utiliserMaPosition} style={{ marginBottom: 16 }}>
+              Utiliser ma position actuelle
+            </button>
+
+            <h3 className="section-subtitle">Bulletins</h3>
+            <p className="field-hint" style={{ marginBottom: 12 }}>
+              Ces informations apparaissent sur chaque bulletin imprimé.
+            </p>
+            <div className="form-grid">
+              <Field label="Nom du signataire" htmlFor="bul-sig-nom" hint="Ex : Awa Diop">
+                <Input id="bul-sig-nom" name="bulletin_signature_nom" value={etabForm?.bulletin_signature_nom ?? ''} onChange={handleEtabChange} />
+              </Field>
+              <Field label="Fonction du signataire" htmlFor="bul-sig-titre" hint="Ex : Le Proviseur">
+                <Input id="bul-sig-titre" name="bulletin_signature_titre" value={etabForm?.bulletin_signature_titre ?? ''} onChange={handleEtabChange} />
+              </Field>
+            </div>
+            <Field label="Mention de pied de bulletin" htmlFor="bul-mention" hint="Facultatif, 300 caractères maximum">
+              <Input id="bul-mention" name="bulletin_mention" value={etabForm?.bulletin_mention ?? ''} onChange={handleEtabChange} />
+            </Field>
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '8px 0 16px' }}>
+              <input
+                type="checkbox"
+                checked={etabForm?.bulletin_afficher_rang !== false}
+                onChange={(e) => setEtabForm((prev) => ({ ...prev, bulletin_afficher_rang: e.target.checked }))}
+              />
+              Afficher le rang de l’élève sur le bulletin
+            </label>
 
             <Field label="Logo de l'établissement" htmlFor="etab-logo" hint="PNG, JPG ou SVG (2 Mo max)">
               <div className="logo-upload-row">
@@ -206,29 +266,29 @@ export default function Parametres() {
           <div className="card-body">
             <ul className="rule-list">
               <li>
-                📏 Barème des notes : <strong>0 à {form.note_max}</strong>
+                Barème des notes : <strong>0 à {form.note_max}</strong>
               </li>
               <li>
-                ✅ Admission (passe) : moyenne ≥ <strong>{form.seuil_admission}</strong>
+                Admission (passe) : moyenne ≥ <strong>{form.seuil_admission}</strong>
               </li>
               <li>
-                🥇 Félicitations : moyenne ≥ <strong>{form.mention_felicitations}</strong>
+                Félicitations : moyenne ≥ <strong>{form.mention_felicitations}</strong>
               </li>
               <li>
-                🥈 Tableau d'honneur : moyenne ≥ <strong>{form.mention_honneur}</strong>
+                Tableau d'honneur : moyenne ≥ <strong>{form.mention_honneur}</strong>
               </li>
               <li>
-                🥉 Encouragements : moyenne ≥ <strong>{form.mention_encouragements}</strong>
+                Encouragements : moyenne ≥ <strong>{form.mention_encouragements}</strong>
               </li>
               <li>
-                🏅 Tableau d'honneur : les <strong>{form.nb_tableau_honneur}</strong> meilleurs élèves
+                Tableau d'honneur : les <strong>{form.nb_tableau_honneur}</strong> meilleurs élèves
                 de chaque classe
               </li>
               <li>
-                🧮 Moyenne générale = Σ (moyenne × coefficient) / Σ coefficients (calcul automatique)
+                Moyenne générale = Σ (moyenne × coefficient) / Σ coefficients (calcul automatique)
               </li>
               <li>
-                🔒 Une note validée est verrouillée : l'enseignant ne peut plus la modifier ni la
+                Une note validée est verrouillée : l'enseignant ne peut plus la modifier ni la
                 supprimer.
               </li>
             </ul>

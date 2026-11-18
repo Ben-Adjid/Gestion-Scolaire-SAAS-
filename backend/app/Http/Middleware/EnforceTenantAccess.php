@@ -14,12 +14,16 @@ class EnforceTenantAccess
     {
         $user = $request->user();
 
-        if ($user && !$user->isSuperAdmin()) {
+        if ($user && ! $user->isSuperAdmin()) {
             // Store the tenant ID in the request for easy access
             $request->attributes->set('tenant_id', $user->etablissement_id);
 
+            if ($request->is('api/me', 'api/etablissement', 'api/abonnement/*')) {
+                return $next($request);
+            }
+
             // Verify the establishment is active
-            if (!$user->etablissement?->isActif()) {
+            if (! $user->etablissement?->isActif()) {
                 return response()->json([
                     'message' => "L'abonnement de votre établissement n'est pas actif.",
                     'code' => 'subscription_inactive',

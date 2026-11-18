@@ -38,7 +38,7 @@ class ConseilClasseController extends Controller
         ]);
 
         $eleves = $this->synthese($classe, (int) $validated['trimestre'], $bulletins);
-        $etablissement = Etablissement::first();
+        $etablissement = auth()->user()->etablissement;
 
         $conseil = ConseilClasse::create([
             'classe_id' => $classe->id,

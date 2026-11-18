@@ -1,5 +1,21 @@
 <?php
 
+use App\Http\Controllers\Api\AnalyseController;
+use App\Http\Controllers\Api\CahierTexteController;
+use App\Http\Controllers\Api\ActualiteController;
+use App\Http\Controllers\Api\ArchiveController;
+use App\Http\Controllers\Api\DepenseController;
+use App\Http\Controllers\Api\DemandeAbonnementController;
+use App\Http\Controllers\Api\CalendrierController;
+use App\Http\Controllers\Api\GroupeScolaireController;
+use App\Http\Controllers\Api\TwoFactorController;
+use App\Http\Controllers\Api\ExamenPlanningController;
+use App\Http\Controllers\Api\PresenceDuJourController;
+use App\Http\Controllers\Api\ComptabiliteController;
+use App\Http\Controllers\Api\ImportExportController;
+use App\Http\Controllers\Api\PaiementWebhookController;
+use App\Http\Controllers\Api\ApiTokenController;
+use App\Http\Controllers\Api\SupportController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AbsenceController;
 use App\Http\Controllers\Api\AbsenceEnseignantController;
@@ -8,6 +24,9 @@ use App\Http\Controllers\Api\AssistantController;
 use App\Http\Controllers\Api\AuditController;
 use App\Http\Controllers\Api\BulletinController;
 use App\Http\Controllers\Api\ClasseController;
+use App\Http\Controllers\Api\ConformiteController;
+use App\Http\Controllers\Api\JustificationController;
+use App\Http\Controllers\Api\ParentController;
 use App\Http\Controllers\Api\ConseilClasseController;
 use App\Http\Controllers\Api\CreneauController;
 use App\Http\Controllers\Api\ConvocationController;
@@ -45,9 +64,32 @@ Route::post('/login', [AuthController::class, 'login'])
     ->middleware('throttle:5,1')
     ->withoutMiddleware(['auth:sanctum', 'subscription']);
 
-Route::middleware(['auth:sanctum', 'subscription', 'enforce_tenant'])->group(function () {
+// Mot de passe oublié : la réponse est identique, que le compte existe ou non.
+Route::post('/mot-de-passe/oublie', [\App\Http\Controllers\Api\MotDePasseController::class, 'oublie'])
+    ->middleware('throttle:5,1')
+    ->withoutMiddleware(['auth:sanctum', 'subscription']);
+Route::post('/mot-de-passe/reinitialiser', [\App\Http\Controllers\Api\MotDePasseController::class, 'reinitialiser'])
+    ->middleware('throttle:10,1')
+    ->withoutMiddleware(['auth:sanctum', 'subscription']);
+
+// Webhook du prestataire de paiement : pas de session, authentification par signature HMAC.
+Route::post('/webhooks/paiement', [PaiementWebhookController::class, 'recevoir'])
+    ->withoutMiddleware(['auth:sanctum', 'subscription', 'enforce_tenant', 'reserve_parents']);
+
+Route::middleware(['auth:sanctum', 'subscription', 'enforce_tenant', 'reserve_parents', 'donnees_scolaires', 'mot_de_passe_a_jour'])->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
+    Route::get('/recherche', [\App\Http\Controllers\Api\RechercheController::class, 'index']);
+    Route::post('/mot-de-passe/changer', [\App\Http\Controllers\Api\MotDePasseController::class, 'changer']);
     Route::post('/logout', [AuthController::class, 'logout']);
+
+    Route::prefix('abonnement')
+        ->middleware('role:admin')
+        ->withoutMiddleware(['subscription', 'enforce_tenant'])
+        ->group(function () {
+            Route::get('/options', [DemandeAbonnementController::class, 'options']);
+            Route::get('/demandes', [DemandeAbonnementController::class, 'mesDemandes']);
+            Route::post('/demandes', [DemandeAbonnementController::class, 'creer'])->middleware('throttle:10,1');
+        });
 
     Route::get('/dashboard', [DashboardController::class, 'index']);
     Route::get('/palmares', [PalmaresController::class, 'index']);
@@ -88,29 +130,139 @@ Route::middleware(['auth:sanctum', 'subscription', 'enforce_tenant'])->group(fun
 
     Route::get('/frais-scolaires/stats', [FraisScolaireController::class, 'stats']);
     Route::post('/frais-scolaires/bulk', [FraisScolaireController::class, 'bulkInit']);
+    Route::get('/frais-scolaires/export', [FraisScolaireController::class, 'export'])->middleware('plan:export_comptable');
+    Route::get('/frais-scolaires/relances', [ConformiteController::class, 'relances'])->middleware('plan:relances');
+    Route::post('/frais-scolaires/{frais}/relancer', [ConformiteController::class, 'relancerIndividuellement'])
+        ->middleware('plan:relances');
+    Route::get('/etudiants/{etudiant}/export-rgpd', [ConformiteController::class, 'exportEleve'])->middleware('plan:rgpd');
+    Route::get('/paiements/{paiement}/recu', [FraisScolaireController::class, 'recu'])->middleware('plan:recus');
     Route::get('/frais-scolaires/{frais}/paiements', [FraisScolaireController::class, 'paiements']);
     Route::post('/frais-scolaires/{frais}/paiements', [FraisScolaireController::class, 'addPaiement']);
     Route::apiResource('frais-scolaires', FraisScolaireController::class)->parameters(['frais-scolaires' => 'frais']);
     Route::get('/eleves-difficulte', [SuiviController::class, 'enDifficulte']);
-    Route::get('/examens', [ExamenController::class, 'index']);
-    Route::get('/dossiers-examen', [DossierExamenController::class, 'index']);
-    Route::post('/dossiers-examen/{etudiant}', [DossierExamenController::class, 'store']);
-    Route::get('/audits', [AuditController::class, 'index']);
+    Route::get('/etudiants/{etudiant}/suivi', [SuiviController::class, 'fiche'])
+        ->middleware(['plan:fiche_suivi', 'role:admin,proviseur,censeur,cpe']);
+    Route::get('/examens', [ExamenController::class, 'index'])->middleware('plan:classes_examen');
+    Route::get('/dossiers-examen', [DossierExamenController::class, 'index'])->middleware('plan:dossiers_examen');
+    Route::get('/dossiers-examen/{etudiant}/fichiers/{type}', [DossierExamenController::class, 'fichier'])
+        ->middleware(['plan:dossiers_examen', 'role:admin,proviseur,censeur,cpe,secretaire']);
+    Route::post('/dossiers-examen/{etudiant}', [DossierExamenController::class, 'store'])->middleware('plan:dossiers_examen');
+    Route::get('/audits', [AuditController::class, 'index'])->middleware('plan:journal_export');
+    Route::get('/analyses', [AnalyseController::class, 'index'])->middleware(['role:admin,proviseur,censeur', 'plan:analyses_avancees']);
+    Route::get('/comptabilite/synthese', [ComptabiliteController::class, 'synthese'])
+        ->middleware(['plan:comptabilite_avancee', 'perm_or_role:comptabilite.voir,admin,proviseur,gestionnaire,agent_comptable']);
+
+    // Données : import CSV des élèves et exports (CSV compatible Excel).
+    Route::post('/import/etudiants', [ImportExportController::class, 'importerEtudiants'])
+        ->middleware('perm_or_role:eleves.importer,admin,secretaire');
+    Route::get('/export/etudiants', [ImportExportController::class, 'exporterEtudiants'])
+        ->middleware('perm_or_role:donnees.exporter,admin,secretaire,proviseur');
+    Route::get('/export/notes', [ImportExportController::class, 'exporterNotes'])
+        ->middleware('perm_or_role:donnees.exporter,admin,secretaire,proviseur');
+    Route::get('/permissions', [UserController::class, 'catalogue']);
+
+    // Calendrier scolaire (Standard) : lecture pour tous, saisie pour la direction.
+    Route::get('/calendrier', [CalendrierController::class, 'index'])->middleware('plan:calendrier_scolaire');
+    Route::post('/calendrier', [CalendrierController::class, 'store'])
+        ->middleware(['plan:calendrier_scolaire', 'role:admin,proviseur']);
+    Route::delete('/calendrier/{evenement}', [CalendrierController::class, 'destroy'])
+        ->middleware(['plan:calendrier_scolaire', 'role:admin,proviseur']);
+
+    // Archives annuelles scellées (Entreprise) : création, consultation, vérification. Aucune modification.
+    Route::get('/archives', [ArchiveController::class, 'index'])->middleware(['plan:archivage', 'role:admin']);
+    Route::post('/archives', [ArchiveController::class, 'store'])->middleware(['plan:archivage', 'role:admin']);
+    Route::get('/archives/{archive}', [ArchiveController::class, 'show'])->middleware(['plan:archivage', 'role:admin']);
+    Route::get('/archives/{archive}/verifier', [ArchiveController::class, 'verifier'])->middleware(['plan:archivage', 'role:admin']);
+
+    // Dépenses (Entreprise) : salaires, fournitures, maintenance, transport.
+    Route::get('/depenses/export', [DepenseController::class, 'export'])
+        ->middleware(['plan:comptabilite_avancee', 'role:admin,proviseur,gestionnaire,agent_comptable']);
+    Route::get('/comptabilite/export', [ComptabiliteController::class, 'export'])
+        ->middleware(['plan:comptabilite_avancee', 'perm_or_role:comptabilite.voir,admin,proviseur,gestionnaire,agent_comptable']);
+    Route::get('/depenses', [DepenseController::class, 'index'])
+        ->middleware(['plan:comptabilite_avancee', 'role:admin,proviseur,gestionnaire,agent_comptable']);
+    Route::post('/depenses', [DepenseController::class, 'store'])
+        ->middleware(['plan:comptabilite_avancee', 'role:admin,proviseur,gestionnaire,agent_comptable']);
+    Route::delete('/depenses/{depense}', [DepenseController::class, 'destroy'])
+        ->middleware(['plan:comptabilite_avancee', 'role:admin,proviseur,gestionnaire,agent_comptable']);
+
+    // Multi-sites (Entreprise) : synthèse consolidée du groupe, par un administrateur d'un site du groupe.
+    Route::get('/groupe/synthese', [GroupeScolaireController::class, 'synthese'])->middleware('role:admin');
+
+    // Double authentification du compte connecté.
+    Route::get('/2fa/statut', [TwoFactorController::class, 'statut']);
+    Route::post('/2fa/activer', [TwoFactorController::class, 'activer']);
+    Route::post('/2fa/confirmer', [TwoFactorController::class, 'confirmer']);
+    Route::post('/2fa/desactiver', [TwoFactorController::class, 'desactiver']);
+
+    // Présence du jour en temps réel (VIP) : direction et vie scolaire.
+    Route::get('/presence-du-jour', [PresenceDuJourController::class, 'index'])
+        ->middleware(['plan:presence_temps_reel', 'role:admin,proviseur,censeur,cpe,secretaire']);
+
+    // Planning des examens (VIP) : consultation pour l'équipe, saisie pour la direction.
+    Route::get('/planning-examens', [ExamenPlanningController::class, 'index'])
+        ->middleware(['plan:planning_examens', 'role:admin,proviseur,censeur,cpe,enseignant,secretaire']);
+    Route::post('/planning-examens', [ExamenPlanningController::class, 'store'])
+        ->middleware(['plan:planning_examens', 'role:admin,proviseur,censeur']);
+    Route::delete('/planning-examens/{epreuve}', [ExamenPlanningController::class, 'destroy'])
+        ->middleware(['plan:planning_examens', 'role:admin,proviseur,censeur']);
+
+    // Fil d'actualité (VIP) : lecture pour tous les comptes de l'établissement, publication pour la direction.
+    Route::get('/actualites', [ActualiteController::class, 'index'])->middleware('plan:fil_actualite');
+    Route::post('/actualites', [ActualiteController::class, 'store'])
+        ->middleware(['plan:fil_actualite', 'role:admin,proviseur']);
+    Route::delete('/actualites/{actualite}', [ActualiteController::class, 'destroy'])
+        ->middleware(['plan:fil_actualite', 'role:admin,proviseur']);
+
+    // Cahier de texte : enseignants (saisie), direction et parents (consultation).
+    Route::get('/cahier-texte', [CahierTexteController::class, 'index'])
+        ->middleware(['plan:cahier_texte', 'role:enseignant,admin,proviseur,censeur,parent']);
+    Route::post('/cahier-texte', [CahierTexteController::class, 'store'])
+        ->middleware(['plan:cahier_texte', 'role:enseignant']);
+    Route::put('/cahier-texte/{cahier}', [CahierTexteController::class, 'update'])
+        ->middleware(['plan:cahier_texte', 'role:enseignant']);
+    Route::delete('/cahier-texte/{cahier}', [CahierTexteController::class, 'destroy'])
+        ->middleware(['plan:cahier_texte', 'role:enseignant']);
+
+    // Formule Entreprise : clés API et support prioritaire.
+    Route::middleware('plan:api')->prefix('api-tokens')->group(function () {
+        Route::get('/', [ApiTokenController::class, 'index']);
+        Route::post('/', [ApiTokenController::class, 'store']);
+        Route::delete('/{id}', [ApiTokenController::class, 'destroy']);
+    });
+    Route::middleware('plan:support_prioritaire')->prefix('support')->group(function () {
+        Route::get('/', [SupportController::class, 'index']);
+        Route::post('/', [SupportController::class, 'store']);
+    });
 
     Route::get('/emploi-du-temps', [EmploiDuTempsController::class, 'index']);
     Route::apiResource('creneaux', CreneauController::class)->except(['show'])->parameters(['creneaux' => 'creneau']);
 
-    Route::get('/alertes', [DashboardController::class, 'alerts'])->middleware('role:admin,proviseur,censeur,cpe');
-    Route::post('/alertes/{alert}/verifier', [DashboardController::class, 'acknowledgeAlert'])->middleware('role:admin,proviseur,censeur,cpe');
+    Route::prefix('parent')->middleware('plan:espace_parent')->group(function () {
+        Route::get('/enfants', [ParentController::class, 'enfants']);
+        Route::get('/enfants/{etudiant}/resume', [ParentController::class, 'resume']);
+        Route::post('/enfants/{etudiant}/absences/{absence}/justifier', [ParentController::class, 'justifier']);
+        Route::get('/justifications', [ParentController::class, 'mesJustifications']);
+    });
+    Route::post('/etudiants/{etudiant}/parents/{parent}', [ParentController::class, 'lier'])->middleware('role:admin,secretaire');
+    Route::delete('/etudiants/{etudiant}/parents/{parent}', [ParentController::class, 'delier'])->middleware('role:admin,secretaire');
+    Route::get('/justifications', [JustificationController::class, 'index']);
+    Route::post('/justifications/{justification}/decision', [JustificationController::class, 'decider']);
 
-    Route::get('/classes/{classe}/conseil', [ConseilClasseController::class, 'prepare']);
-    Route::get('/classes/{classe}/conseils', [ConseilClasseController::class, 'index']);
-    Route::post('/classes/{classe}/conseils', [ConseilClasseController::class, 'store']);
-    Route::get('/classes/{classe}/conseils/{conseil}', [ConseilClasseController::class, 'show']);
+    Route::get('/a-traiter', [\App\Http\Controllers\Api\ATraiterController::class, 'index'])->middleware('role:admin,proviseur,censeur,cpe');
+    Route::get('/alertes', [DashboardController::class, 'alerts'])->middleware(['role:admin,proviseur,censeur,cpe', 'plan:alertes']);
+    Route::post('/alertes/{alert}/verifier', [DashboardController::class, 'acknowledgeAlert'])->middleware(['role:admin,proviseur,censeur,cpe', 'plan:alertes']);
+
+    Route::get('/classes/{classe}/conseil', [ConseilClasseController::class, 'prepare'])->middleware('plan:conseil_classe');
+    Route::get('/classes/{classe}/conseils', [ConseilClasseController::class, 'index'])->middleware('plan:conseil_classe');
+    Route::post('/classes/{classe}/conseils', [ConseilClasseController::class, 'store'])->middleware('plan:conseil_classe');
+    Route::get('/classes/{classe}/conseils/{conseil}', [ConseilClasseController::class, 'show'])->middleware('plan:conseil_classe');
     Route::apiResource('emploi-du-temps', EmploiDuTempsController::class)->except(['index', 'show'])->parameters(['emploi-du-temps' => 'emploiDuTemps']);
 
-    Route::apiResource('classes', ClasseController::class);
+    Route::apiResource('classes', ClasseController::class)->parameters(['classes' => 'classe']);
     Route::apiResource('enseignants', EnseignantController::class);
+    Route::get('/etudiants/doublons', [EtudiantController::class, 'doublons'])
+        ->middleware('role:admin,proviseur,censeur,secretaire');
     Route::get('/etudiants/lookup', [EtudiantController::class, 'lookup']);
     Route::apiResource('etudiants', EtudiantController::class);
     Route::apiResource('matieres', MatiereController::class);
@@ -122,11 +274,15 @@ Route::middleware(['auth:sanctum', 'subscription', 'enforce_tenant'])->group(fun
     Route::get('/etudiants/{etudiant}/bulletin', [BulletinController::class, 'show']);
     Route::get('/classes/{classe}/bulletins', [BulletinController::class, 'classe']);
     Route::get('/etudiants/{etudiant}/dossier', [DossierInscriptionController::class, 'show']);
+    Route::get('/etudiants/{etudiant}/dossier/fichiers/{type}', [DossierInscriptionController::class, 'fichier']);
     Route::post('/etudiants/{etudiant}/dossier', [DossierInscriptionController::class, 'update']);
 
     // ── Routes Super Admin (SaaS) ──────────────────────────────────
     Route::middleware('role:super_admin')->prefix('super-admin')->group(function () {
         Route::get('/dashboard', [SuperAdminController::class, 'dashboard']);
+        Route::get('/journal', [SuperAdminController::class, 'journal']);
+        Route::get('/etablissements/export', [SuperAdminController::class, 'exporterEtablissements']);
+        Route::post('/annonces', [SuperAdminController::class, 'annoncer']);
         Route::get('/etablissements', [SuperAdminController::class, 'indexEtablissements']);
         Route::post('/etablissements', [SuperAdminController::class, 'storeEtablissement']);
         Route::get('/etablissements/{etablissement}', [SuperAdminController::class, 'showEtablissement']);
@@ -134,5 +290,23 @@ Route::middleware(['auth:sanctum', 'subscription', 'enforce_tenant'])->group(fun
         Route::delete('/etablissements/{etablissement}', [SuperAdminController::class, 'destroyEtablissement']);
         Route::post('/etablissements/{etablissement}/suspendre', [SuperAdminController::class, 'suspendreEtablissement']);
         Route::post('/etablissements/{etablissement}/reactiver', [SuperAdminController::class, 'reactiverEtablissement']);
+        Route::get('/groupes', [GroupeScolaireController::class, 'index']);
+        Route::post('/groupes', [GroupeScolaireController::class, 'store']);
+        Route::put('/groupes/{groupe}', [GroupeScolaireController::class, 'update']);
+        Route::delete('/groupes/{groupe}', [GroupeScolaireController::class, 'destroy']);
+        Route::post('/etablissements/{etablissement}/groupe', [GroupeScolaireController::class, 'lier']);
+        Route::post('/etablissements/{etablissement}/relancer', [SuperAdminController::class, 'relancer']);
+        Route::post('/etablissements/{etablissement}/essai', [SuperAdminController::class, 'demarrerEssai']);
+        Route::get('/paiements-abonnement/{paiement}/facture', [SuperAdminController::class, 'factureAbonnement']);
+        Route::post('/etablissements/{etablissement}/reinitialiser-admin', [SuperAdminController::class, 'reinitialiserAdmin']);
+        Route::get('/paiements-abonnement/{paiement}/recu', [SuperAdminController::class, 'recuAbonnement']);
+        Route::post('/etablissements/{etablissement}/renouveler', [SuperAdminController::class, 'renouveler']);
+        Route::get('/etablissements/{etablissement}/paiements-abonnement', [SuperAdminController::class, 'paiementsAbonnement']);
+        Route::get('/demandes-abonnement', [DemandeAbonnementController::class, 'index']);
+        Route::get('/demandes-abonnement/{demande}/justificatif', [DemandeAbonnementController::class, 'justificatif']);
+        Route::post('/demandes-abonnement/{demande}/approuver', [DemandeAbonnementController::class, 'approuver']);
+        Route::post('/demandes-abonnement/{demande}/refuser', [DemandeAbonnementController::class, 'refuser']);
+        Route::get('/support', [SuperAdminController::class, 'supportIndex']);
+        Route::post('/support/{demande}', [SuperAdminController::class, 'supportRepondre']);
     });
 });

@@ -26,11 +26,17 @@ class UserRequest extends FormRequest
             ],
             'role' => [
                 'required',
+                // Un proviseur crée le personnel (pas de compte de direction ni de plateforme) ; l'admin attribue tout sauf la plateforme.
                 Rule::in($this->user()?->isSuperAdmin()
                     ? User::ROLES
-                    : array_diff(User::ROLES, ['super_admin'])),
+                    : ($this->user()?->role === 'proviseur'
+                        ? array_diff(User::ROLES, ['super_admin', 'admin', 'proviseur'])
+                        : array_diff(User::ROLES, ['super_admin']))),
             ],
             'enseignant_id' => ['nullable', 'exists:enseignants,id'],
+            'telephone' => ['nullable', 'string', 'max:30'],
+            'permissions' => ['nullable', 'array'],
+            'permissions.*' => ['string', Rule::exists('permissions', 'code')],
             'password' => [
                 $this->isMethod('post') ? 'required' : 'nullable',
                 'string',

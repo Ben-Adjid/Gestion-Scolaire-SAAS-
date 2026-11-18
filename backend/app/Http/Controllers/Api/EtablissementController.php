@@ -19,25 +19,38 @@ class EtablissementController extends Controller
 
     public function show(Request $request): JsonResponse
     {
-        $etablissement = $request->user()->etablissement_id
-            ? Etablissement::find($request->user()->etablissement_id)
-            : Etablissement::first();
+        // Un compte sans établissement (super admin) voit l'identité de la plateforme, jamais celle d'une école.
+        $compte = $request->user();
+        $etablissement = $compte->role !== 'super_admin' && $compte->etablissement_id
+            ? Etablissement::find($compte->etablissement_id)
+            : null;
 
-        return response()->json(
-            $etablissement ?? [
-                'nom' => 'Lycée Ibnou Cina',
-                'devise' => 'Unité — Travail — Progrès',
-                'ministere' => "Ministère de l'Éducation Nationale",
-                'annee_scolaire' => '2025-2026',
-                'prefixe_matricule' => 'LIC',
-            ]
-        );
+        $donnees = $etablissement ? $etablissement->toArray() : [
+            'nom' => 'Plateforme de gestion scolaire',
+            'logo_path' => null,
+            'couleur_principale' => null,
+            'devise' => null,
+            'ministere' => null,
+            'annee_scolaire' => null,
+            'prefixe_matricule' => null,
+        ];
+
+        // Le catalogue des formules permet au frontend d'indiquer la formule minimale requise.
+        return response()->json($donnees + ['formules' => config('plans.plans')]);
     }
 
     public function update(EtablissementRequest $request): JsonResponse
     {
         $data = $request->validated();
         unset($data['logo']);
+
+        $tenant = $request->user()->etablissement;
+        if (array_key_exists('couleur_principale', $data) && $tenant && ! in_array('personnalisation', $tenant->fonctionnalites(), true)) {
+            return response()->json([
+                'message' => "La personnalisation de l'espace est réservée à la formule Entreprise.",
+                'code' => 'plan_insuffisant',
+            ], 403);
+        }
 
         if ($request->hasFile('logo')) {
             $directory = public_path('uploads/logos');

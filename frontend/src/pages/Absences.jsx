@@ -156,21 +156,18 @@ export default function Absences() {
       {stats && (
         <div className="stat-grid stat-grid--3">
           <div className="stat-card stat-card--rose">
-            <span className="stat-icon">🚫</span>
             <div className="stat-body">
               <span className="stat-value">{stats.absences}</span>
               <span className="stat-label">Absences</span>
             </div>
           </div>
           <div className="stat-card stat-card--amber">
-            <span className="stat-icon">⏰</span>
             <div className="stat-body">
               <span className="stat-value">{stats.retards}</span>
               <span className="stat-label">Retards</span>
             </div>
           </div>
           <div className="stat-card stat-card--cyan">
-            <span className="stat-icon">⚠️</span>
             <div className="stat-body">
               <span className="stat-value">{stats.non_justifiees}</span>
               <span className="stat-label">Non justifiées</span>
@@ -223,8 +220,8 @@ export default function Absences() {
                       <td className="cell-actions">
                         {canEdit && (
                           <>
-                            <button type="button" className="icon-btn" title="Modifier" onClick={() => openEdit(item)}>✏️</button>
-                            <button type="button" className="icon-btn" title="Supprimer" onClick={() => setDeleting(item)}>🗑️</button>
+                            <button type="button" className="btn btn--ghost btn--sm" onClick={() => openEdit(item)}>Modifier</button>
+                            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setDeleting(item)}>Supprimer</button>
                           </>
                         )}
                       </td>

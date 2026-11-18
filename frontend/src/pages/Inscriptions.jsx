@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { classesApi, dossierInscriptionApi, etudiantsApi, inscriptionsApi } from '../api/endpoints'
+import { classesApi, dossierInscriptionApi, etudiantsApi, inscriptionsApi, telecharger } from '../api/endpoints'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -78,6 +78,7 @@ export default function Inscriptions() {
   const [classes, setClasses] = useState([])
 
   const [modalOpen, setModalOpen] = useState(false)
+  const [etape, setEtape] = useState(1)
   const [mode, setMode] = useState('nouveau')
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(EMPTY_NEW)
@@ -94,11 +95,12 @@ export default function Inscriptions() {
 
   const [dossier, setDossier] = useState(EMPTY_DOSSIER)
   const [docFiles, setDocFiles] = useState({ acte_naissance: null, bulletin: null, photo: null })
+  const [pendingDossierEtudiantId, setPendingDossierEtudiantId] = useState(null)
 
   useEffect(() => {
-    etudiantsApi.list({ per_page: 1000 }).then((res) => setEtudiants(res.data.data)).catch(() => {})
-    classesApi.list({ per_page: 1000 }).then((res) => setClasses(res.data.data)).catch(() => {})
-  }, [])
+    etudiantsApi.list({ per_page: 1000 }).then((res) => setEtudiants(res.data.data)).catch((err) => toast.error(err.message))
+    classesApi.list({ per_page: 1000 }).then((res) => setClasses(res.data.data)).catch((err) => toast.error(err.message))
+  }, [toast])
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -126,6 +128,8 @@ export default function Inscriptions() {
   const openCreate = (m) => {
     setEditing(null)
     setMode(m)
+    setEtape(1)
+    setPendingDossierEtudiantId(null)
     setForm(m === 'nouveau' ? EMPTY_NEW : EMPTY_OLD)
     setFormErrors({})
     setMatriculeSearch('')
@@ -168,12 +172,11 @@ export default function Inscriptions() {
     setMatriculeSearch('')
     setLookupResult(null)
     setLookupError(null)
-    dossierInscriptionApi
-      .show(item.etudiant_id)
-      .then((res) => {
-        setDossier(dossierFrom(res.data))
-      })
-      .catch(() => {})
+    setEtape(1)
+    setPendingDossierEtudiantId(null)
+    dossierInscriptionApi.show(item.etudiant_id)
+      .then((res) => setDossier(dossierFrom(res.data)))
+      .catch((err) => toast.error(`Impossible de charger le dossier : ${err.message}`))
     setDocFiles({ acte_naissance: null, bulletin: null, photo: null })
     setModalOpen(true)
   }
@@ -186,8 +189,22 @@ export default function Inscriptions() {
   const handleDocFile = (key, e) => {
     const file = e.target.files?.[0]
     if (!file) return
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Chaque document doit faire 2 Mo ou moins.')
+      e.target.value = ''
+      return
+    }
     setDocFiles((prev) => ({ ...prev, [key]: file }))
     setDossier((prev) => ({ ...prev, [key]: true }))
+  }
+
+  const telechargerDocument = async (type) => {
+    try {
+      const res = await dossierInscriptionApi.fichier(editing?.etudiant_id || form.etudiant_id, type)
+      telecharger(res.data, `${type}`)
+    } catch (err) {
+      toast.error(`Téléchargement impossible : ${err.message}`)
+    }
   }
 
   const saveDossier = async (etudiantId) => {
@@ -208,11 +225,42 @@ export default function Inscriptions() {
     setFormErrors((prev) => ({ ...prev, [name]: undefined }))
   }
 
+  const continuer = () => {
+    if (!editing && mode === 'nouveau' && (!form.prenom.trim() || !form.nom.trim())) {
+      setFormErrors({
+        ...(!form.prenom.trim() ? { prenom: ['Le prénom est obligatoire.'] } : {}),
+        ...(!form.nom.trim() ? { nom: ['Le nom est obligatoire.'] } : {}),
+      })
+      return
+    }
+    if (!editing && mode === 'ancien' && !form.etudiant_id) {
+      setFormErrors({ etudiant_id: ['Recherchez et sélectionnez un élève avant de continuer.'] })
+      return
+    }
+    setEtape(2)
+    setFormErrors({})
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (etape === 1) {
+      continuer()
+      return
+    }
+
+    let inscriptionDejaCreee = Boolean(pendingDossierEtudiantId)
     setSaving(true)
     setFormErrors({})
     try {
+      if (pendingDossierEtudiantId) {
+        await saveDossier(pendingDossierEtudiantId)
+        toast.success('Dossier d’inscription enregistré.')
+        setPendingDossierEtudiantId(null)
+        setModalOpen(false)
+        fetchData()
+        return
+      }
+
       let etudiantId = form.etudiant_id
       let message = 'Inscription enregistrée avec succès.'
 
@@ -246,20 +294,26 @@ export default function Inscriptions() {
       }
 
       if (etudiantId) {
-        try {
-          await saveDossier(etudiantId)
-        } catch {
-          // Le dossier peut être complété plus tard.
-        }
+        setPendingDossierEtudiantId(etudiantId)
+        inscriptionDejaCreee = true
+        await saveDossier(etudiantId)
       }
 
       toast.success(message)
+      setPendingDossierEtudiantId(null)
       setModalOpen(false)
       fetchData()
     } catch (err) {
       setFormErrors(err.errors || {})
+      if (Object.keys(err.errors || {}).some((champ) => ['nom', 'prenom', 'etudiant_id'].includes(champ))) {
+        setEtape(1)
+      }
       if (!err.errors || !Object.keys(err.errors).length) {
-        toast.error(err.message)
+        toast.error(inscriptionDejaCreee
+          ? `L’inscription est enregistrée, mais le dossier n’a pas été sauvegardé : ${err.message}. Réessayez sans recréer l’inscription.`
+          : err.message)
+      } else if (inscriptionDejaCreee) {
+        toast.error(`L’inscription est enregistrée, mais le dossier n’a pas été sauvegardé : ${err.message}. Réessayez sans recréer l’inscription.`)
       }
     } finally {
       setSaving(false)
@@ -372,20 +426,14 @@ export default function Inscriptions() {
                       <td className="cell-actions">
                         <button
                           type="button"
-                          className="icon-btn"
-                          title="Modifier"
+                          className="btn btn--ghost btn--sm"
                           onClick={() => openEdit(item)}
-                        >
-                          ✏️
-                        </button>
+                        >Modifier</button>
                         <button
                           type="button"
-                          className="icon-btn"
-                          title="Supprimer"
+                          className="btn btn--ghost btn--sm"
                           onClick={() => setDeleting(item)}
-                        >
-                          🗑️
-                        </button>
+                        >Supprimer</button>
                       </td>
                     </tr>
                   ))}
@@ -418,20 +466,41 @@ export default function Inscriptions() {
             >
               Annuler
             </button>
+            {etape === 2 && (
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={() => setEtape(1)}
+                disabled={saving}
+              >
+                Précédent
+              </button>
+            )}
             <button
-              type="submit"
-              form="inscription-form"
+              type={etape === 1 ? 'button' : 'submit'}
+              form={etape === 2 ? 'inscription-form' : undefined}
               className="btn btn--primary"
               disabled={saving}
+              onClick={etape === 1 ? continuer : undefined}
             >
-              {saving ? 'Enregistrement…' : mode === 'nouveau' && !editing ? 'Inscrire' : 'Enregistrer'}
+              {saving ? 'Enregistrement…' : etape === 1 ? 'Continuer' : pendingDossierEtudiantId ? 'Réessayer le dossier' : mode === 'nouveau' && !editing ? 'Inscrire' : 'Enregistrer'}
             </button>
           </>
         }
       >
         <form id="inscription-form" onSubmit={handleSubmit} noValidate>
-          {!editing && mode === 'nouveau' && (
+          <div className="inscription-etapes" aria-label="Étapes du formulaire">
+            <div className={`inscription-etape ${etape === 1 ? 'inscription-etape--active' : 'inscription-etape--done'}`}>
+              <span>1</span><strong>Élève</strong><small>Identité ou recherche</small>
+            </div>
+            <div className={`inscription-etape ${etape === 2 ? 'inscription-etape--active' : ''}`}>
+              <span>2</span><strong>Inscription</strong><small>Classe et documents</small>
+            </div>
+          </div>
+
+          {etape === 1 && !editing && mode === 'nouveau' && (
             <>
+              <h3 className="form-titre-section">Identité de l’élève</h3>
               <div className="form-grid">
                 <Field label="Prénom" htmlFor="prenom" required error={formErrors.prenom?.[0]}>
                   <Input
@@ -480,26 +549,16 @@ export default function Inscriptions() {
             </>
           )}
 
-          {editing ? (
-            <Field label="Élève" htmlFor="etudiant_id" required error={formErrors.etudiant_id?.[0]}>
-              <Select
-                id="etudiant_id"
-                name="etudiant_id"
-                value={form.etudiant_id}
-                onChange={handleChange}
-                disabled
-              >
-                <option value="">— Sélectionner un élève —</option>
-                {etudiants.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.prenom} {e.nom} {e.matricule ? `(${e.matricule})` : ''}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          ) : mode === 'ancien' ? (
+          {etape === 1 && editing ? (
+            <div className="inscription-resume">
+              <strong>Élève déjà inscrit</strong>
+              <span>{editing.etudiant?.prenom || ''} {editing.etudiant?.nom || ''}</span>
+              <span className="muted">Matricule : {editing.etudiant?.matricule || '—'}</span>
+            </div>
+          ) : etape === 1 && mode === 'ancien' ? (
             <div className="lookup-box">
-              <Field label="Rechercher par matricule" htmlFor="matricule-search">
+              <h3 className="form-titre-section">Retrouver l’élève</h3>
+              <Field label="Rechercher par matricule" htmlFor="matricule-search" error={formErrors.etudiant_id?.[0]}>
                 <div className="lookup-row">
                   <Input
                     id="matricule-search"
@@ -520,7 +579,6 @@ export default function Inscriptions() {
               </Field>
 
               {lookupError && <Alert type="error">{lookupError}</Alert>}
-
               {lookupResult && (
                 <div className="lookup-result">
                   <div className="lookup-result-head">
@@ -528,44 +586,43 @@ export default function Inscriptions() {
                       {(lookupResult.etudiant.prenom?.[0] || '') + (lookupResult.etudiant.nom?.[0] || '')}
                     </span>
                     <div>
-                      <strong>
-                        {lookupResult.etudiant.prenom} {lookupResult.etudiant.nom}
-                      </strong>
+                      <strong>{lookupResult.etudiant.prenom} {lookupResult.etudiant.nom}</strong>
                       <p className="muted">
-                        Matricule {lookupResult.etudiant.matricule} •{' '}
-                        {lookupResult.etudiant.classe?.nom || 'Sans classe'}
+                        Matricule {lookupResult.etudiant.matricule} • {lookupResult.etudiant.classe?.nom || 'Sans classe'}
                       </p>
                     </div>
                   </div>
                   <div className="lookup-result-stats">
-                    <div>
-                      <span className="lookup-label">Moyenne annuelle</span>
-                      <span className="lookup-value">
-                        {lookupResult.moyenne_annuelle != null
-                          ? `${lookupResult.moyenne_annuelle}/20`
-                          : '—'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="lookup-label">Décision</span>
-                      <span
-                        className={`badge ${
-                          lookupResult.decision.statut === 'admis'
-                            ? 'badge--success'
-                            : lookupResult.decision.statut === 'redouble'
-                              ? 'badge--danger'
-                              : 'badge--neutral'
-                        }`}
-                      >
-                        {lookupResult.decision.label}
-                      </span>
-                    </div>
+                    <div><span className="lookup-label">Moyenne annuelle</span><span className="lookup-value">{lookupResult.moyenne_annuelle != null ? `${lookupResult.moyenne_annuelle}/20` : '—'}</span></div>
+                    <div><span className="lookup-label">Décision</span><span className="badge">{lookupResult.decision.label}</span></div>
                   </div>
                 </div>
               )}
             </div>
           ) : null}
 
+          {etape === 2 && (
+            <>
+          {editing ? (
+            <Field label="Élève" htmlFor="etudiant_id" required error={formErrors.etudiant_id?.[0]}>
+              <Select
+                id="etudiant_id"
+                name="etudiant_id"
+                value={form.etudiant_id}
+                onChange={handleChange}
+                disabled
+              >
+                <option value="">— Sélectionner un élève —</option>
+                {etudiants.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.prenom} {e.nom} {e.matricule ? `(${e.matricule})` : ''}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          ) : null}
+
+          <h3 className="form-titre-section">Informations de l’inscription</h3>
           <div className="form-grid">
             <Field label="Classe" htmlFor="classe_id" required error={formErrors.classe_id?.[0]}>
               <Select id="classe_id" name="classe_id" value={form.classe_id} onChange={handleChange}>
@@ -610,7 +667,7 @@ export default function Inscriptions() {
           </Field>
 
           <div className="dossier-section">
-            <h4 className="dossier-title">📁 Dossier d'inscription</h4>
+            <h4 className="dossier-title">Dossier d'inscription</h4>
             <p className="field-hint">
               {mode === 'ancien' && !editing
                 ? 'Le dossier existant est déjà rempli. Mettez à jour uniquement ce qui change (ex. photo).'
@@ -628,7 +685,7 @@ export default function Inscriptions() {
                   {doc.label}
                 </label>
                 <label className="photo-upload-label">
-                  📎 {dossier[`${doc.key}_path`] ? 'Remplacer le fichier' : 'Téléverser'}
+                  {dossier[`${doc.key}_path`] ? 'Remplacer le fichier' : 'Téléverser'}
                   <input
                     type="file"
                     accept={doc.key === 'photo' ? 'image/*' : 'image/*,.pdf'}
@@ -636,15 +693,11 @@ export default function Inscriptions() {
                     style={{ display: 'none' }}
                   />
                 </label>
+                {docFiles[doc.key] && <span className="muted">{docFiles[doc.key].name}</span>}
                 {dossier[`${doc.key}_path`] && (
-                  <a
-                    className="dossier-file-link"
-                    href={`/${dossier[`${doc.key}_path`]}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    👁️ Voir le fichier
-                  </a>
+                  <button type="button" className="dossier-file-link" onClick={() => telechargerDocument(doc.key)}>
+                    Télécharger le fichier
+                  </button>
                 )}
               </div>
             ))}
@@ -659,6 +712,8 @@ export default function Inscriptions() {
               />
             </Field>
           </div>
+            </>
+          )}
         </form>
       </Modal>
 

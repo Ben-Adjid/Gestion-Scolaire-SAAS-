@@ -22,6 +22,16 @@ class EtablissementRequest extends FormRequest
             'responsable' => ['nullable', 'string', 'max:255'],
             'annee_scolaire' => ['required', 'string', 'max:20'],
             'prefixe_matricule' => ['nullable', 'string', 'max:10'],
+            'bulletin_signature_nom' => ['nullable', 'string', 'max:120'],
+            'bulletin_signature_titre' => ['nullable', 'string', 'max:120'],
+            'bulletin_mention' => ['nullable', 'string', 'max:300'],
+            'bulletin_afficher_rang' => ['nullable', 'boolean'],
+            'bulletin_couleur' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'couleur_principale' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            // Position de l'école : sert au contrôle du pointage des enseignants (distance maximale autorisée).
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'rayon_pointage' => ['nullable', 'integer', 'between:20,1000'],
             'logo' => ['nullable', 'image', 'mimes:png,jpg,jpeg,svg', 'max:2048'],
         ];
     }

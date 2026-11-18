@@ -10,11 +10,11 @@ import Alert from '../components/Alert'
 import { useToast } from '../components/Toast'
 import { Field, Input } from '../components/Field'
 
-const EMPTY_FORM = { nom: '', coefficient: 1, couleur: '#4f46e5' }
+const EMPTY_FORM = { nom: '', coefficient: 1, couleur: '#1F5C4A' }
 
 const PALETTE = [
-  '#4f46e5', '#2563eb', '#0891b2', '#0f766e', '#16a34a', '#7c3aed',
-  '#db2777', '#e11d48', '#d97706', '#ea580c', '#64748b', '#0f172a',
+  '#1F5C4A', '#2563eb', '#0891b2', '#0f766e', '#16a34a', '#C2703D',
+  '#db2777', '#e11d48', '#d97706', '#ea580c', '#6B6A63', '#15302A',
 ]
 
 export default function Matieres() {
@@ -67,7 +67,7 @@ export default function Matieres() {
     setForm({
       nom: item.nom,
       coefficient: item.coefficient,
-      couleur: item.couleur || '#4f46e5',
+      couleur: item.couleur || '#1F5C4A',
     })
     setFormErrors({})
     setModalOpen(true)
@@ -162,7 +162,7 @@ export default function Matieres() {
                         <span className="matiere-cell">
                           <span
                             className="matiere-dot"
-                            style={{ background: item.couleur || '#4f46e5' }}
+                            style={{ background: item.couleur || '#1F5C4A' }}
                           />
                           <span className="cell-strong">{item.nom}</span>
                         </span>
@@ -173,7 +173,7 @@ export default function Matieres() {
                       <td>
                         <span
                           className="color-swatch"
-                          style={{ background: item.couleur || '#4f46e5' }}
+                          style={{ background: item.couleur || '#1F5C4A' }}
                         >
                           {item.couleur}
                         </span>
@@ -181,20 +181,14 @@ export default function Matieres() {
                       <td className="cell-actions">
                         <button
                           type="button"
-                          className="icon-btn"
-                          title="Modifier"
+                          className="btn btn--ghost btn--sm"
                           onClick={() => openEdit(item)}
-                        >
-                          ✏️
-                        </button>
+                        >Modifier</button>
                         <button
                           type="button"
-                          className="icon-btn"
-                          title="Supprimer"
+                          className="btn btn--ghost btn--sm"
                           onClick={() => setDeleting(item)}
-                        >
-                          🗑️
-                        </button>
+                        >Supprimer</button>
                       </td>
                     </tr>
                   ))}

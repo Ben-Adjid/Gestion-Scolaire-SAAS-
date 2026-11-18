@@ -61,9 +61,9 @@ class AbsenceEnseignantController extends Controller
         ], 201);
     }
 
-    public function destroy(AbsenceEnseignant $absence): JsonResponse
+    public function destroy(AbsenceEnseignant $absenceEnseignant): JsonResponse
     {
-        $absence->delete();
+        $absenceEnseignant->delete();
 
         return response()->json(['message' => "Signalement supprimé avec succès."]);
     }

@@ -9,11 +9,19 @@ class Audit extends Model
 {
     protected $fillable = [
         'user_id',
+        'etablissement_id',
         'action',
         'module',
         'entite_id',
         'description',
         'ip',
+        'valeurs_avant',
+        'valeurs_apres',
+    ];
+
+    protected $casts = [
+        'valeurs_avant' => 'array',
+        'valeurs_apres' => 'array',
     ];
 
     public function user(): BelongsTo

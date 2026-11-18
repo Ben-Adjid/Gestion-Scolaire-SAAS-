@@ -145,15 +145,15 @@ export default function Appels() {
           <div className="card-body">
             {confirme ? (
               <Alert type="success" onClose={() => {}}>
-                ✅ Appel confirmé{appel?.confirme_par ? ` par ${appel.confirme_par.name}` : ''}. Les absences sont comptabilisées au bulletin.
+                Appel confirmé{appel?.confirme_par ? ` par ${appel.confirme_par.name}` : ''}. Les absences sont comptabilisées au bulletin.
               </Alert>
             ) : locked ? (
               <Alert type="success" onClose={() => {}}>
-                🔒 Appel validé{appel?.valide_par ? ` par ${appel.valide_par.name}` : ''}. Il n'est plus modifiable.
+                Appel validé{appel?.valide_par ? ` par ${appel.valide_par.name}` : ''}. Il n'est plus modifiable.
                 {canConfirm && (
                   <div style={{ marginTop: 10 }}>
                     <button type="button" className="btn btn--primary btn--sm" onClick={confirmer} disabled={confirming}>
-                      {confirming ? 'Confirmation…' : "✅ Confirmer l'appel"}
+                      {confirming ? 'Confirmation…' : "Confirmer l'appel"}
                     </button>
                   </div>
                 )}
@@ -210,7 +210,7 @@ export default function Appels() {
                   {saving ? 'Enregistrement…' : 'Enregistrer (brouillon)'}
                 </button>
                 <button type="button" className="btn btn--primary" onClick={() => save(true)} disabled={saving}>
-                  🔒 Valider et verrouiller
+                  Valider et verrouiller
                 </button>
               </div>
             )}

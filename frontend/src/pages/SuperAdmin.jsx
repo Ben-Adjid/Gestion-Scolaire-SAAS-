@@ -7,13 +7,75 @@ import EmptyState from '../components/EmptyState'
 import Alert from '../components/Alert'
 import { useToast } from '../components/Toast'
 import { Field, Input, Select } from '../components/Field'
+import { DemandesAbonnementCard, RenouvellementCard, SupportPlateformeCard } from '../components/SuperAdminCartes'
+import GroupesCard from '../components/GroupesCard'
+import JournalPlateformeCard from '../components/JournalPlateformeCard'
+import FicheEtablissement from '../components/FicheEtablissement'
 
 const PLANS = [
-  { value: 'starter',    label: '🌱 Starter',    price: 29, color: '#64748b' },
-  { value: 'standard',   label: '⭐ Standard',   price: 79, color: '#4f46e5' },
-  { value: 'premium',    label: '🏆 Premium',    price: 149, color: '#d97706' },
-  { value: 'entreprise', label: '🏢 Entreprise', price: 299, color: '#16a34a' },
+  { value: 'standard',   label: 'Standard',   price: 25000,  color: '#1F5C4A' },
+  { value: 'vip',        label: 'VIP',        price: 50000,  color: '#C2703D' },
+  { value: 'entreprise', label: 'Entreprise', price: 100000, color: '#16a34a' },
 ]
+
+function AnnonceCard() {
+  const toast = useToast()
+  const [titre, setTitre] = useState('')
+  const [contenu, setContenu] = useState('')
+  const [cible, setCible] = useState('tous')
+  const [plan, setPlan] = useState('standard')
+  const [envoi, setEnvoi] = useState(false)
+
+  const envoyer = async (e) => {
+    e.preventDefault()
+    setEnvoi(true)
+    try {
+      const res = await client.post('/super-admin/annonces', { titre, contenu, cible, plan: cible === 'plan' ? plan : undefined })
+      toast.success(res.data.message)
+      setTitre('')
+      setContenu('')
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setEnvoi(false)
+    }
+  }
+
+  return (
+    <form className="card" style={{ marginBottom: 16 }} onSubmit={envoyer}>
+      <div className="card-header"><h2>Annonce à la communauté</h2></div>
+      <div className="card-body">
+        <p className="muted" style={{ marginBottom: 12 }}>
+          Un message de la plateforme, envoyé aux administrateurs des établissements choisis.
+        </p>
+        <Field label="Titre" htmlFor="annonce-titre" required>
+          <Input id="annonce-titre" value={titre} onChange={(e) => setTitre(e.target.value)} />
+        </Field>
+        <Field label="Message" htmlFor="annonce-contenu" required>
+          <textarea id="annonce-contenu" className="input" rows={4} value={contenu} onChange={(e) => setContenu(e.target.value)} />
+        </Field>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'end' }}>
+          <Field label="Destinataires" htmlFor="annonce-cible">
+            <Select id="annonce-cible" value={cible} onChange={(e) => setCible(e.target.value)}>
+              <option value="tous">Tous les établissements</option>
+              <option value="plan">Une formule seulement</option>
+            </Select>
+          </Field>
+          {cible === 'plan' && (
+            <Field label="Formule" htmlFor="annonce-plan">
+              <Select id="annonce-plan" value={plan} onChange={(e) => setPlan(e.target.value)}>
+                {PLANS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+              </Select>
+            </Field>
+          )}
+          <button type="submit" className="btn btn--primary" disabled={envoi || !titre || !contenu}>
+            {envoi ? 'Envoi…' : 'Envoyer l’annonce'}
+          </button>
+        </div>
+      </div>
+    </form>
+  )
+}
 
 const STATUTS = [
   { value: 'actif',     label: 'Actif',     bg: '#f0fdf4', color: '#16a34a' },
@@ -32,11 +94,34 @@ const EMPTY_FORM = {
   admin_name: '', admin_email: '', admin_password: '',
 }
 
-export default function SuperAdmin() {
+// Une section par entrée du menu « Plateforme SaaS ».
+const TITRES = {
+  ecoles: ['Gestion des écoles', 'Établissements abonnés, statistiques et actions sur chaque école.'],
+  abonnements: ['Abonnements', 'Renouvellements et historique des paiements des écoles.'],
+  groupes: ['Groupes scolaires', 'Plusieurs sites sous un même propriétaire.'],
+  annonces: ['Annonces', 'Messages de la plateforme aux administrateurs des écoles.'],
+  support: ['Support', 'Demandes envoyées par les écoles à la plateforme.'],
+  journal: ['Journal de la plateforme', 'Toutes les actions faites par la plateforme.'],
+  risque: ['Écoles à risque', 'Écoles actives dont le score de santé est inférieur ou égal à 50/100.'],
+}
+
+const SEUIL_RISQUE = 50
+
+// Couleur du score de santé : vert au-dessus de 75, orange jusqu'à 50, rouge en dessous.
+function badgeSante(score) {
+  if (score === undefined || score === null) return <span className="muted">—</span>
+  const classe = score > 75 ? 'badge--success' : score > SEUIL_RISQUE ? 'badge--amber' : 'badge--danger'
+  return <span className={`badge ${classe}`}>{score} / 100</span>
+}
+
+export default function SuperAdmin({ section = 'ecoles' }) {
   const toast = useToast()
   const [stats, setStats] = useState(null)
   const [etablissements, setEtablissements] = useState([])
   const [loading, setLoading] = useState(true)
+  // Incrémenté à chaque rechargement : les cartes qui listent les établissements repartent de données à jour.
+  const [version, setVersion] = useState(0)
+  const [ficheId, setFicheId] = useState(null)
   const [error, setError] = useState(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -57,6 +142,7 @@ export default function SuperAdmin() {
       ])
       setStats(dashRes.data.stats)
       setEtablissements(listRes.data.data)
+      setVersion((v) => v + 1)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -69,8 +155,36 @@ export default function SuperAdmin() {
   const visibleEtablissements = etablissements.filter((etab) => {
     const matchesSearch = !search.trim()
       || `${etab.nom} ${etab.responsable || ''}`.toLowerCase().includes(search.trim().toLowerCase())
-    return matchesSearch && (!statusFilter || etab.statut_abonnement === statusFilter)
+    // Page « Écoles à risque » : seulement les écoles actives sous le seuil.
+    const aRisque = section !== 'risque'
+      || (etab.statut_abonnement === 'actif' && (etab.sante?.score ?? 100) <= SEUIL_RISQUE)
+    return matchesSearch && aRisque && (!statusFilter || etab.statut_abonnement === statusFilter)
   })
+
+  // Le mot de passe temporaire s'affiche une seule fois, dans un champ prêt à être copié.
+  const reinitialiserMotDePasse = async (etab) => {
+    if (!window.confirm(`Réinitialiser le mot de passe de l'administrateur de « ${etab.nom} » ? Ses sessions seront fermées.`)) return
+    try {
+      const res = await client.post(`/super-admin/etablissements/${etab.id}/reinitialiser-admin`)
+      window.prompt(
+        `Mot de passe temporaire pour ${res.data.email} (copiez-le maintenant, il ne sera plus affiché) :`,
+        res.data.mot_de_passe_temporaire
+      )
+      toast.success('Mot de passe réinitialisé.')
+    } catch (err) {
+      toast.error(err.message || 'Réinitialisation impossible.')
+    }
+  }
+
+  const relancerEcole = async (etab) => {
+    if (!window.confirm(`Envoyer une relance par e-mail aux administrateurs de « ${etab.nom} » ?`)) return
+    try {
+      const res = await client.post(`/super-admin/etablissements/${etab.id}/relancer`)
+      toast.success(res.data.message)
+    } catch (err) {
+      toast.error(err.message || 'Relance impossible.')
+    }
+  }
 
   const planTotals = PLANS.map((plan) => ({
     ...plan,
@@ -90,7 +204,7 @@ export default function SuperAdmin() {
       nom: e.nom || '', responsable: e.responsable || '',
       telephone: e.telephone || '', adresse: e.adresse || '',
       annee_scolaire: e.annee_scolaire || '',
-      prefixe_matricule: '', plan: e.plan || 'standard',
+      prefixe_matricule: e.prefixe_matricule || '', plan: e.plan || 'standard',
       statut_abonnement: e.statut_abonnement || 'actif',
       abonnement_fin: e.abonnement_fin || '',
       admin_name: '', admin_email: '', admin_password: '',
@@ -148,51 +262,81 @@ export default function SuperAdmin() {
   }
 
   const handleDelete = async (etab) => {
-    if (!confirm(`Supprimer définitivement "${etab.nom}" et TOUTES ses données ? Cette action est irréversible.`)) return
+    // Suppression irréversible : le nom exact de l'école doit être ressaisi.
+    const saisie = window.prompt(`Suppression définitive de « ${etab.nom} » et de toutes ses données.\nPour confirmer, saisissez son nom exact :`)
+    if (saisie === null) return
     try {
-      await client.delete(`/super-admin/etablissements/${etab.id}`)
-      toast.success(`"${etab.nom}" supprimé.`)
+      await client.delete(`/super-admin/etablissements/${etab.id}`, { data: { confirmation: saisie } })
+      toast.success(`« ${etab.nom} » supprimé.`)
       fetchAll()
-    } catch { toast.error('Erreur lors de la suppression.') }
+    } catch (err) {
+      toast.error(err.message || 'Suppression impossible.')
+    }
   }
+
+  // Export CSV téléchargé avec le jeton de session (le lien direct ne porte pas l'en-tête d'authentification).
+  const exporterCsv = async () => {
+    try {
+      const res = await client.get('/super-admin/etablissements/export', { responseType: 'blob' })
+      const url = URL.createObjectURL(res.data)
+      const lien = document.createElement('a')
+      lien.href = url
+      lien.download = 'etablissements.xlsx'
+      lien.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      toast.error(err.message || 'Export impossible.')
+    }
+  }
+
+  const titre = TITRES[section] || TITRES.ecoles
 
   return (
     <div>
       <PageHeader
-        title="🛡️ Super Admin — Gestion SaaS"
-        subtitle="Gérez tous les établissements abonnés à la plateforme."
-        actionLabel="+ Nouvel établissement"
-        onAction={openCreate}
+        title={titre[0]}
+        subtitle={titre[1]}
+        actionLabel={section === 'ecoles' ? '+ Nouvel établissement' : undefined}
+        onAction={section === 'ecoles' ? openCreate : undefined}
       />
+
+      {section === 'annonces' && <AnnonceCard />}
+      {section === 'abonnements' && (
+        <>
+          <DemandesAbonnementCard />
+          <RenouvellementCard key={`renouv-${version}`} />
+        </>
+      )}
+      {section === 'groupes' && <GroupesCard key={`groupes-${version}`} />}
+      {section === 'journal' && <JournalPlateformeCard />}
+      {section === 'support' && <SupportPlateformeCard />}
+      <FicheEtablissement etablissementId={ficheId} onClose={() => setFicheId(null)} onChange={fetchAll} />
 
       {error && <Alert>{error}</Alert>}
 
+      {(section === 'ecoles' || section === 'risque') && (<>
       {/* ── Tableau de bord global ── */}
-      {stats && (
+      {section === 'ecoles' && stats && (
         <div className="stat-grid stat-grid--4" style={{ marginBottom: 24 }}>
           <div className="stat-card stat-card--indigo">
-            <div className="stat-icon">🏫</div>
             <div className="stat-body">
               <span className="stat-value">{stats.total_etablissements}</span>
               <span className="stat-label">Établissements</span>
             </div>
           </div>
           <div className="stat-card stat-card--green">
-            <div className="stat-icon">✅</div>
             <div className="stat-body">
               <span className="stat-value">{stats.actifs}</span>
               <span className="stat-label">Abonnements actifs</span>
             </div>
           </div>
           <div className="stat-card stat-card--amber">
-            <div className="stat-icon">⏸️</div>
             <div className="stat-body">
               <span className="stat-value">{stats.suspendus}</span>
               <span className="stat-label">Suspendus</span>
             </div>
           </div>
           <div className="stat-card stat-card--rose">
-            <div className="stat-icon">👨‍🎓</div>
             <div className="stat-body">
               <span className="stat-value">{stats.total_eleves}</span>
               <span className="stat-label">Élèves total</span>
@@ -201,6 +345,7 @@ export default function SuperAdmin() {
         </div>
       )}
 
+      {section === 'ecoles' && (
       <div className="card" style={{ marginBottom: 24 }}>
         <div className="card-body">
           <div className="section-heading" style={{ marginBottom: 14 }}>
@@ -215,13 +360,14 @@ export default function SuperAdmin() {
                 <div className="stat-body">
                   <span className="stat-label">{plan.label}</span>
                   <span className="stat-value">{plan.total}</span>
-                  <span className="cell-muted">{plan.price} € / mois</span>
+                  <span className="cell-muted">{plan.price.toLocaleString('fr-FR')} FCFA / mois</span>
                 </div>
               </div>
             ))}
           </div>
         </div>
       </div>
+      )}
 
       {/* ── Liste des établissements ── */}
       <div className="card">
@@ -238,6 +384,7 @@ export default function SuperAdmin() {
                 <option value="">Tous les statuts</option>
                 {STATUTS.map((statut) => <option key={statut.value} value={statut.value}>{statut.label}</option>)}
               </Select>
+              <button type="button" className="btn btn--ghost" onClick={exporterCsv}>Exporter Excel</button>
             </div>
           )}
           {loading ? (
@@ -258,6 +405,7 @@ export default function SuperAdmin() {
                     <th>Établissement</th>
                     <th>Plan</th>
                     <th>Statut</th>
+                    <th>Santé</th>
                     <th>Fin d'abonnement</th>
                     <th>Élèves</th>
                     <th>Classes</th>
@@ -285,19 +433,23 @@ export default function SuperAdmin() {
                             {statut.label}
                           </span>
                         </td>
-                        <td className="cell-muted">{etab.abonnement_fin || '—'}</td>
+                        <td>{badgeSante(etab.sante?.score)}</td>
+                        <td className="cell-muted">{etab.abonnement_fin ? etab.abonnement_fin.split('-').reverse().join('/') : '—'}</td>
                         <td>{etab.etudiants_count}</td>
                         <td>{etab.classes_count}</td>
                         <td className="cell-muted">{etab.created_at}</td>
                         <td>
                           <div className="cell-actions">
-                            <button className="icon-btn" title="Modifier" onClick={() => openEdit(etab)}>✏️</button>
+                            <button className="btn btn--ghost btn--sm" onClick={() => setFicheId(etab.id)}>Fiche</button>
+                            <button className="btn btn--ghost btn--sm" onClick={() => relancerEcole(etab)}>Relancer</button>
+                            <button className="btn btn--ghost btn--sm" onClick={() => reinitialiserMotDePasse(etab)}>Mot de passe</button>
+                            <button className="btn btn--ghost btn--sm" onClick={() => openEdit(etab)}>Modifier</button>
                             {etab.statut_abonnement === 'suspendu' ? (
-                              <button className="icon-btn" title="Réactiver" onClick={() => handleReactiver(etab)}>▶️</button>
+                              <button className="btn btn--ghost btn--sm" onClick={() => handleReactiver(etab)}>Réactiver</button>
                             ) : (
-                              <button className="icon-btn" title="Suspendre" onClick={() => handleSuspendre(etab)}>⏸️</button>
+                              <button className="btn btn--ghost btn--sm" onClick={() => handleSuspendre(etab)}>Suspendre</button>
                             )}
-                            <button className="icon-btn" title="Supprimer" onClick={() => handleDelete(etab)}>🗑️</button>
+                            <button className="btn btn--ghost btn--sm" onClick={() => handleDelete(etab)}>Supprimer</button>
                           </div>
                         </td>
                       </tr>
@@ -310,15 +462,25 @@ export default function SuperAdmin() {
         </div>
       </div>
 
+      </>)}
+
       {/* ── Modale création / modification ── */}
       <Modal
         open={modalOpen}
         title={editing ? `Modifier : ${editing.nom}` : 'Nouvel établissement'}
         onClose={() => setModalOpen(false)}
         size="lg"
+        footer={(
+          <>
+            <button type="button" className="btn btn--ghost" onClick={() => setModalOpen(false)}>Annuler</button>
+            <button type="submit" form="form-etablissement" className="btn btn--primary" disabled={saving}>
+              {saving ? 'Enregistrement…' : editing ? 'Mettre à jour' : 'Créer l\'établissement'}
+            </button>
+          </>
+        )}
       >
-        <form onSubmit={handleSubmit}>
-            <h3 style={{ margin: '0 0 14px' }}>Informations de l'établissement</h3>
+        <form id="form-etablissement" onSubmit={handleSubmit}>
+            <h3 className="form-titre-section">Informations de l'établissement</h3>
             <div className="form-grid">
             <Field label="Nom de l'établissement *" error={formErrors.nom}>
               <Input name="nom" value={form.nom} onChange={handleChange} required />
@@ -334,7 +496,7 @@ export default function SuperAdmin() {
             </Field>
             <Field label="Plan d'abonnement *" error={formErrors.plan}>
               <Select name="plan" value={form.plan} onChange={handleChange}>
-                {PLANS.map(p => <option key={p.value} value={p.value}>{p.label} — {p.price} € / mois</option>)}
+                {PLANS.map(p => <option key={p.value} value={p.value}>{p.label} — {p.price.toLocaleString('fr-FR')} FCFA / mois</option>)}
               </Select>
             </Field>
             <Field label="Fin d'abonnement" error={formErrors.abonnement_fin}>
@@ -351,10 +513,7 @@ export default function SuperAdmin() {
 
           {!editing && (
             <>
-              <hr style={{ margin: '20px 0', borderColor: '#e2e8f0' }} />
-              <p style={{ fontWeight: 700, marginBottom: 12, color: '#4f46e5' }}>
-                👤 Compte administrateur de l'établissement
-              </p>
+              <h3 className="form-titre-section">Compte administrateur</h3>
               <div className="form-grid">
                 <Field label="Nom de l'admin *" error={formErrors.admin_name}>
                   <Input name="admin_name" value={form.admin_name} onChange={handleChange} required={!editing} />
@@ -369,12 +528,6 @@ export default function SuperAdmin() {
             </>
           )}
 
-          <div className="modal-footer" style={{ marginTop: 20 }}>
-            <button type="button" className="btn btn--ghost" onClick={() => setModalOpen(false)}>Annuler</button>
-            <button type="submit" className="btn btn--primary" disabled={saving}>
-              {saving ? 'Enregistrement…' : editing ? 'Mettre à jour' : 'Créer l\'établissement'}
-            </button>
-          </div>
         </form>
       </Modal>
     </div>

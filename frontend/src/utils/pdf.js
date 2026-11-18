@@ -62,28 +62,48 @@ const groupMatieresByDomaine = (matieres) => {
 }
 
 export async function downloadTablePdf({ title, subtitle, columns, rows, filename, landscape = false }) {
-  const { default: jsPDF } = await import('jspdf')
-  const { default: autoTable } = await import('jspdf-autotable')
+  const jsPDF = await chargerJsPDF()
+  const autoTable = await chargerAutoTable()
 
   const doc = new jsPDF({ orientation: landscape ? 'landscape' : 'portrait' })
+  const largeur = doc.internal.pageSize.getWidth()
 
+  // Bandeau d'en-tête aux couleurs de l'école, titre en blanc.
+  doc.setFillColor(31, 92, 74)
+  doc.rect(0, 0, largeur, 26, 'F')
+  doc.setTextColor(255, 255, 255)
   doc.setFontSize(16)
-  doc.setTextColor(15, 23, 42)
-  doc.text(title, 14, 16)
-
+  doc.text(title, 14, 14)
   if (subtitle) {
+    doc.setFontSize(9)
+    doc.setTextColor(226, 232, 240)
+    doc.text(subtitle, 14, 21)
+  }
+  // Nom de l'établissement à droite du bandeau (le titre de l'onglet porte le nom de l'école connectée).
+  const nomEcole = (typeof document !== 'undefined' && document.title) || ''
+  if (nomEcole) {
     doc.setFontSize(10)
-    doc.setTextColor(100, 116, 139)
-    doc.text(subtitle, 14, 23)
+    doc.setTextColor(255, 255, 255)
+    doc.text(nomEcole, largeur - 14, 14, { align: 'right' })
   }
 
   autoTable(doc, {
     head: [columns],
     body: rows,
-    startY: subtitle ? 28 : 24,
-    styles: { fontSize: 9, cellPadding: 3 },
-    headStyles: { fillColor: [79, 70, 229], textColor: 255, fontSize: 9 },
-    alternateRowStyles: { fillColor: [248, 250, 252] },
+    startY: 32,
+    margin: { top: 32, bottom: 18, left: 14, right: 14 },
+    styles: { fontSize: 9, cellPadding: 3, textColor: [21, 48, 42], lineColor: [228, 222, 211], lineWidth: 0.1 },
+    headStyles: { fillColor: [31, 92, 74], textColor: 255, fontStyle: 'bold', halign: 'center' },
+    alternateRowStyles: { fillColor: [243, 240, 233] },
+    didDrawPage: () => {
+      // Pied de page : date de génération et numérotation.
+      const hauteur = doc.internal.pageSize.getHeight()
+      const page = doc.internal.getNumberOfPages()
+      doc.setFontSize(8)
+      doc.setTextColor(120, 113, 100)
+      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, hauteur - 8)
+      doc.text(`Page ${page}`, largeur - 14, hauteur - 8, { align: 'right' })
+    },
   })
 
   doc.save(filename)
@@ -91,7 +111,7 @@ export async function downloadTablePdf({ title, subtitle, columns, rows, filenam
 
 export async function downloadElementPdf(element, filename) {
   const { default: html2canvas } = await import('html2canvas')
-  const { default: jsPDF } = await import('jspdf')
+  const jsPDF = await chargerJsPDF()
 
   const canvas = await html2canvas(element, {
     scale: 2,
@@ -129,8 +149,8 @@ export async function downloadElementPdf(element, filename) {
 }
 
 export async function downloadBulletinsPdf({ bulletins, etablissement, trimestreLabel, filename }) {
-  const { default: jsPDF } = await import('jspdf')
-  const { default: autoTable } = await import('jspdf-autotable')
+  const jsPDF = await chargerJsPDF()
+  const autoTable = await chargerAutoTable()
 
   const doc = new jsPDF('p', 'mm', 'a4')
   const pageWidth = doc.internal.pageSize.getWidth()
@@ -198,7 +218,7 @@ export async function downloadBulletinsPdf({ bulletins, etablissement, trimestre
         startY: currentY + 8,
         margin: { left: 14, right: 14 },
         styles: { fontSize: 8, cellPadding: 2.5 },
-        headStyles: { fillColor: [79, 70, 229], textColor: 255, fontSize: 8 },
+        headStyles: { fillColor: [31, 92, 74], textColor: 255, fontSize: 8 },
         alternateRowStyles: { fillColor: [248, 250, 252] },
       })
 
@@ -241,3 +261,14 @@ export async function downloadBulletinsPdf({ bulletins, etablissement, trimestre
   doc.save(filename)
 }
 
+
+// jsPDF 4 et jspdf-autotable 5 exposent des exports nommés ; les versions précédentes, un export par défaut.
+async function chargerJsPDF() {
+  const module = await import('jspdf')
+  return module.jsPDF || module.default
+}
+
+async function chargerAutoTable() {
+  const module = await import('jspdf-autotable')
+  return module.autoTable || module.default
+}

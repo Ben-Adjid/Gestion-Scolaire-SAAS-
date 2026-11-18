@@ -8,6 +8,8 @@ use App\Models\DossierInscription;
 use App\Models\Etudiant;
 use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DossierInscriptionController extends Controller
 {
@@ -21,6 +23,21 @@ class DossierInscriptionController extends Controller
         $this->authorize('view', $etudiant);
 
         return response()->json($etudiant->dossierInscription);
+    }
+
+    public function fichier(Etudiant $etudiant, string $type): StreamedResponse
+    {
+        $this->authorize('view', $etudiant);
+
+        $chemins = [
+            'acte_naissance' => $etudiant->dossierInscription?->acte_naissance_path,
+            'bulletin' => $etudiant->dossierInscription?->bulletin_path,
+            'photo' => $etudiant->dossierInscription?->photo_path,
+        ];
+        abort_unless(array_key_exists($type, $chemins) && $chemins[$type], 404);
+        abort_unless(Storage::disk('private')->exists($chemins[$type]), 404);
+
+        return Storage::disk('private')->download($chemins[$type], $type.'.'.pathinfo($chemins[$type], PATHINFO_EXTENSION));
     }
 
     public function update(DossierInscriptionRequest $request, Etudiant $etudiant): JsonResponse

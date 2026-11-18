@@ -71,4 +71,40 @@ class SuiviController extends Controller
             'eleves' => $eleves,
         ]);
     }
+
+    public function fiche(Request $request, Etudiant $etudiant): JsonResponse
+    {
+        $etudiant->load('classe:id,nom,niveau');
+        $notes = $etudiant->notes()
+            ->with('matiere:id,nom')
+            ->orderBy('trimestre')
+            ->orderBy('created_at')
+            ->get()
+            ->map(fn ($note) => [
+                'matiere' => $note->matiere?->nom,
+                'trimestre' => $note->trimestre,
+                'type' => $note->type,
+                'valeur' => $note->valeur,
+                'appreciation' => $note->appreciation,
+                'statut' => $note->statut,
+            ]);
+        $absences = $etudiant->absences()->orderByDesc('date')->get();
+        return response()->json([
+            'eleve' => $etudiant->only(['id', 'matricule', 'nom', 'prenom']),
+            'classe' => $etudiant->classe?->only(['id', 'nom', 'niveau']),
+            'synthese' => [
+                'notes' => $notes->count(),
+                'moyenne' => $notes->isEmpty() ? null : round($notes->avg('valeur'), 2),
+                'absences' => $absences->where('type', 'absence')->count(),
+                'retards' => $absences->where('type', 'retard')->count(),
+            ],
+            'notes' => $notes,
+            'absences' => $absences->map(fn ($absence) => [
+                'date' => $absence->date?->toDateString(),
+                'type' => $absence->type,
+                'justifie' => (bool) $absence->justifie,
+                'motif' => $absence->motif,
+            ])->values(),
+        ]);
+    }
 }

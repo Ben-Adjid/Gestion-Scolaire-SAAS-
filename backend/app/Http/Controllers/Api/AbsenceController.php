@@ -95,7 +95,7 @@ class AbsenceController extends Controller
         $student = $absence->etudiant;
 
         // Envoyer notification aux parents
-        $this->notifications->notifyAbsence($student, $absence);
+        app(\App\Services\NotificationParentsService::class)->notifierAbsence($student, $absence);
 
         $this->alerts->checkAbsences($student);
 

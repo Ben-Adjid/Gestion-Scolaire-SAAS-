@@ -3,9 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\Classe;
+use App\Models\Etablissement;
 use App\Models\Etudiant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -65,5 +68,54 @@ class DossierInscriptionTest extends TestCase
         $this->postJson("/api/etudiants/{$etudiant->id}/dossier", [
             'photo' => true,
         ])->assertStatus(403);
+    }
+
+    public function test_televersement_et_telechargement_prive_du_dossier(): void
+    {
+        Storage::fake('private');
+        $etudiant = Etudiant::factory()->create();
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'etablissement_id' => $etudiant->etablissement_id,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $this->post("/api/etudiants/{$etudiant->id}/dossier", [
+            'acte_naissance' => true,
+            'acte_naissance_file' => UploadedFile::fake()->createWithContent('acte.pdf', '%PDF-1.4 document'),
+        ])->assertOk();
+
+        $path = $etudiant->fresh()->dossierInscription->acte_naissance_path;
+        Storage::disk('private')->assertExists($path);
+        $this->get("/api/etudiants/{$etudiant->id}/dossier/fichiers/acte_naissance")
+            ->assertOk()
+            ->assertHeader('content-disposition');
+        $this->get("/api/etudiants/{$etudiant->id}/dossier/fichiers/inconnu")->assertNotFound();
+    }
+
+    public function test_televersement_et_telechargement_prive_du_dossier_d_examen(): void
+    {
+        Storage::fake('private');
+        $etablissement = Etablissement::create([
+            'nom' => 'Lycée examens',
+            'plan' => 'vip',
+            'statut_abonnement' => 'actif',
+        ]);
+        $etudiant = Etudiant::factory()->create(['etablissement_id' => $etablissement->id]);
+        Sanctum::actingAs(User::factory()->create([
+            'role' => 'admin',
+            'etablissement_id' => $etablissement->id,
+        ]));
+
+        $this->post("/api/dossiers-examen/{$etudiant->id}", [
+            'examen' => 'bac',
+            'acte_naissance' => true,
+            'acte_naissance_file' => UploadedFile::fake()->createWithContent('acte.pdf', '%PDF-1.4 document'),
+        ])->assertOk();
+
+        $this->get("/api/dossiers-examen/{$etudiant->id}/fichiers/acte_naissance")
+            ->assertOk()
+            ->assertHeader('content-disposition');
+        $this->get("/api/dossiers-examen/{$etudiant->id}/fichiers/unknown")->assertNotFound();
     }
 }

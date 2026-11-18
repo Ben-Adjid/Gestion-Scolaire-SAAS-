@@ -10,6 +10,8 @@ use App\Services\AuditLogger;
 use App\Services\TeacherScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DossierExamenController extends Controller
 {
@@ -95,6 +97,21 @@ class DossierExamenController extends Controller
             'message' => 'Dossier mis à jour avec succès.',
             'dossier' => $dossier,
         ]);
+    }
+
+    public function fichier(Etudiant $etudiant, string $type): StreamedResponse
+    {
+        $this->authorize('view', $etudiant);
+
+        $chemins = [
+            'acte_naissance' => $etudiant->dossierExamen?->acte_naissance_path,
+            'photos_identite' => $etudiant->dossierExamen?->photos_identite_path,
+            'fiche_renseignement' => $etudiant->dossierExamen?->fiche_renseignement_path,
+        ];
+        abort_unless(array_key_exists($type, $chemins) && $chemins[$type], 404);
+        abort_unless(Storage::disk('private')->exists($chemins[$type]), 404);
+
+        return Storage::disk('private')->download($chemins[$type], $type.'.'.pathinfo($chemins[$type], PATHINFO_EXTENSION));
     }
 
     private function storeFile($file): string

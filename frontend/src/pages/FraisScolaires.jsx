@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { classesApi, etudiantsApi, fraisScolairesApi } from '../api/endpoints'
+import { classesApi, etudiantsApi, exportApi, fraisScolairesApi, telecharger } from '../api/endpoints'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -9,6 +9,7 @@ import Pagination from '../components/Pagination'
 import Alert from '../components/Alert'
 import { useToast } from '../components/Toast'
 import { useAuth } from '../context/AuthContext'
+import { FeatureButton } from '../components/PlanGate'
 import { useEtablissement } from '../context/EtablissementContext'
 import { Field, Input, Select } from '../components/Field'
 
@@ -39,6 +40,7 @@ export default function FraisScolaires() {
   const { etablissement } = useEtablissement()
   const canEdit = ['admin', 'gestionnaire', 'agent_comptable'].includes(user?.role)
   const annee = etablissement.annee_scolaire || '2025-2026'
+  const [anneeAffichee, setAnneeAffichee] = useState(annee)
 
   const [items, setItems] = useState([])
   const [meta, setMeta] = useState(null)
@@ -67,6 +69,36 @@ export default function FraisScolaires() {
     mode: 'especes',
   })
   const [savingPaiement, setSavingPaiement] = useState(false)
+  const [recusDe, setRecusDe] = useState(null)
+  const [paiementsRecus, setPaiementsRecus] = useState([])
+
+  const exporterCsv = async () => {
+    try {
+      const res = await exportApi.fraisCsv(anneeAffichee)
+      telecharger(res.data, `frais-scolaires-${anneeAffichee}.xlsx`)
+    } catch (err) {
+      toast.error(err.message)
+    }
+  }
+
+  const ouvrirRecus = async (item) => {
+    setRecusDe(item)
+    try {
+      const res = await fraisScolairesApi.paiements(item.id)
+      setPaiementsRecus(res.data)
+    } catch (err) {
+      toast.error(err.message)
+    }
+  }
+
+  const telechargerRecu = async (paiement) => {
+    try {
+      const res = await exportApi.recu(paiement.id)
+      telecharger(res.data, `recu-${paiement.id}.html`)
+    } catch (err) {
+      toast.error(err.message)
+    }
+  }
 
   const [deleting, setDeleting] = useState(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
@@ -88,7 +120,7 @@ export default function FraisScolaires() {
         search: search || undefined,
         classe_id: classeId || undefined,
         statut: statut || undefined,
-        annee_scolaire: annee,
+        annee_scolaire: anneeAffichee,
         page,
       })
       setItems(res.data.data)
@@ -98,7 +130,7 @@ export default function FraisScolaires() {
     } finally {
       setLoading(false)
     }
-  }, [search, classeId, statut, annee, page])
+  }, [search, classeId, statut, anneeAffichee, page])
 
   useEffect(() => {
     const timer = setTimeout(fetchData, 300)
@@ -106,8 +138,8 @@ export default function FraisScolaires() {
   }, [fetchData])
 
   useEffect(() => {
-    fraisScolairesApi.stats().then((res) => setStats(res.data)).catch(() => {})
-  }, [items])
+    fraisScolairesApi.stats({ annee_scolaire: anneeAffichee }).then((res) => setStats(res.data)).catch(() => {})
+  }, [items, anneeAffichee])
 
   const openCreate = () => {
     setEditing(null)
@@ -144,6 +176,7 @@ export default function FraisScolaires() {
       } else {
         await fraisScolairesApi.create(form)
         toast.success('Frais scolaires enregistrés.')
+        setAnneeAffichee(form.annee_scolaire)
       }
       setModalOpen(false)
       fetchData()
@@ -175,6 +208,15 @@ export default function FraisScolaires() {
       toast.error(err.message)
     } finally {
       setSavingPaiement(false)
+    }
+  }
+
+  const relancerIndividuellement = async (frais) => {
+    try {
+      const res = await fraisScolairesApi.relancer(frais.id)
+      toast.success(res.data.message)
+    } catch (err) {
+      toast.error(err.message)
     }
   }
 
@@ -219,9 +261,12 @@ export default function FraisScolaires() {
         onAction={canEdit ? openCreate : undefined}
         extra={
           <>
+            <FeatureButton feature="export_comptable" onClick={exporterCsv}>
+              Exporter Excel
+            </FeatureButton>
             {canEdit && (
               <button type="button" className="btn btn--ghost" onClick={() => setBulkOpen(true)}>
-                ⚙️ Initialiser une classe
+                Initialiser une classe
               </button>
             )}
             <Select
@@ -235,6 +280,13 @@ export default function FraisScolaires() {
                 <option key={c.id} value={c.id}>{c.nom}</option>
               ))}
             </Select>
+            <Input
+              value={anneeAffichee}
+              onChange={(e) => { setAnneeAffichee(e.target.value.trim()); setPage(1) }}
+              placeholder="Année (ex. 2026-2027)"
+              aria-label="Année scolaire"
+              className="filter-select"
+            />
             <Select
               value={statut}
               onChange={(e) => { setStatut(e.target.value); setPage(1) }}
@@ -253,28 +305,24 @@ export default function FraisScolaires() {
       {stats && (
         <div className="stat-grid stat-grid--4">
           <div className="stat-card stat-card--indigo">
-            <span className="stat-icon">💰</span>
             <div className="stat-body">
               <span className="stat-value">{money(stats.montant_total)}</span>
               <span className="stat-label">Montant attendu</span>
             </div>
           </div>
           <div className="stat-card stat-card--green">
-            <span className="stat-icon">✅</span>
             <div className="stat-body">
               <span className="stat-value">{money(stats.montant_paye)}</span>
               <span className="stat-label">Encaissé</span>
             </div>
           </div>
           <div className="stat-card stat-card--rose">
-            <span className="stat-icon">⚠️</span>
             <div className="stat-body">
               <span className="stat-value">{money(stats.reste)}</span>
               <span className="stat-label">Reste à payer</span>
             </div>
           </div>
           <div className="stat-card stat-card--amber">
-            <span className="stat-icon">🎓</span>
             <div className="stat-body">
               <span className="stat-value">{stats.effectif}</span>
               <span className="stat-label">Élèves suivis</span>
@@ -323,13 +371,21 @@ export default function FraisScolaires() {
                         <td className={item.reste > 0 ? 'cell-danger' : ''}>{money(item.reste)}</td>
                         <td><span className={`badge ${s.cls}`}>{s.label}</span></td>
                         <td className="cell-actions">
+                          <FeatureButton feature="recus" className="btn btn--ghost btn--sm" onClick={() => ouvrirRecus(item)}>
+                            Reçus
+                          </FeatureButton>
                           {canEdit && (
                             <>
+                              {item.reste > 0 && (
+                                <FeatureButton feature="relances" className="btn btn--ghost btn--sm" onClick={() => relancerIndividuellement(item)}>
+                                  Relancer
+                                </FeatureButton>
+                              )}
                               <button type="button" className="btn btn--ghost btn--sm" onClick={() => openPaiement(item)}>
                                 Paiement
                               </button>
-                              <button type="button" className="icon-btn" title="Modifier" onClick={() => openEdit(item)}>✏️</button>
-                              <button type="button" className="icon-btn" title="Supprimer" onClick={() => setDeleting(item)}>🗑️</button>
+                              <button type="button" className="btn btn--ghost btn--sm" onClick={() => openEdit(item)}>Modifier</button>
+                              <button type="button" className="btn btn--ghost btn--sm" onClick={() => setDeleting(item)}>Supprimer</button>
                             </>
                           )}
                         </td>
@@ -345,6 +401,26 @@ export default function FraisScolaires() {
       </div>
 
       <Modal
+        open={Boolean(recusDe)}
+        title={recusDe ? `Reçus — ${recusDe.etudiant?.prenom ?? ''} ${recusDe.etudiant?.nom ?? ''}` : ''}
+        onClose={() => setRecusDe(null)}
+        footer={<button type="button" className="btn btn--ghost" onClick={() => setRecusDe(null)}>Fermer</button>}
+      >
+        {paiementsRecus.length === 0 ? (
+          <p className="muted">Aucun paiement enregistré pour ces frais.</p>
+        ) : (
+          <ul className="top-list">
+            {paiementsRecus.map((p) => (
+              <li key={p.id} className="top-item">
+                <span className="top-name">{p.date_paiement} — {Number(p.montant).toLocaleString('fr-FR')} FCFA ({p.mode_paiement})</span>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => telechargerRecu(p)}>Reçu</button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Modal>
+
+      <Modal
         open={modalOpen}
         title={editing ? 'Modifier les frais' : 'Ajouter des frais'}
         onClose={() => setModalOpen(false)}
@@ -358,6 +434,7 @@ export default function FraisScolaires() {
         }
       >
         <form id="frais-form" onSubmit={handleSubmit} noValidate>
+          <h3 className="form-titre-section">Élève et frais</h3>
           {!editing && (
             <Field label="Élève" htmlFor="etudiant_id" required error={formErrors.etudiant_id?.[0]}>
               <Select id="etudiant_id" name="etudiant_id" value={form.etudiant_id} onChange={handleChange}>

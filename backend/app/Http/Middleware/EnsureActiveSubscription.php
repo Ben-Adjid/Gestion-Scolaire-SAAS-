@@ -11,7 +11,12 @@ class EnsureActiveSubscription
     {
         $user = $request->user();
 
-        if (! $user || $user->isSuperAdmin() || $request->is('api/logout')) {
+        if (! $user || $user->isSuperAdmin() || $request->is(
+            'api/logout',
+            'api/me',
+            'api/etablissement',
+            'api/abonnement/*',
+        )) {
             return $next($request);
         }
 

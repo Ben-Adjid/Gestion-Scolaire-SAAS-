@@ -181,20 +181,14 @@ export default function Enseignants() {
                       <td className="cell-actions">
                         <button
                           type="button"
-                          className="icon-btn"
-                          title="Modifier"
+                          className="btn btn--ghost btn--sm"
                           onClick={() => openEdit(item)}
-                        >
-                          ✏️
-                        </button>
+                        >Modifier</button>
                         <button
                           type="button"
-                          className="icon-btn"
-                          title="Supprimer"
+                          className="btn btn--ghost btn--sm"
                           onClick={() => setDeleting(item)}
-                        >
-                          🗑️
-                        </button>
+                        >Supprimer</button>
                       </td>
                     </tr>
                   ))}
@@ -232,6 +226,7 @@ export default function Enseignants() {
         }
       >
         <form id="enseignant-form" onSubmit={handleSubmit} noValidate>
+          <h3 className="form-titre-section">Identité</h3>
           <div className="form-grid">
             <Field label="Prénom" htmlFor="prenom" required error={formErrors.prenom?.[0]}>
               <Input
@@ -292,7 +287,7 @@ export default function Enseignants() {
                 name="telephone"
                 value={form.telephone}
                 onChange={handleChange}
-                placeholder="Ex : +221 77 000 00 00"
+                placeholder="Ex : +235 66 00 00 00"
                 error={formErrors.telephone?.[0]}
               />
             </Field>

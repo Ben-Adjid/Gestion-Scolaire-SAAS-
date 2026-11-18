@@ -52,6 +52,14 @@ class PointageController extends Controller
 
                 $pointage = $pointages->get($cours->id);
 
+                // Etat lisible par l'enseignant : pointé, ouvert, pas encore ouvert, ou fenêtre manquée.
+                $etat = match (true) {
+                    $pointage !== null => 'pointe',
+                    $now->lt($min) => 'a_venir',
+                    $now->gt($max) => 'manque',
+                    default => 'ouvert',
+                };
+
                 return [
                     'emploi_du_temps_id' => $cours->id,
                     'classe' => $cours->classe?->nom,
@@ -60,14 +68,18 @@ class PointageController extends Controller
                     'heure_debut' => $cours->heure_debut,
                     'heure_fin' => $cours->heure_fin,
                     'pointage' => $pointage ? ['statut' => $pointage->statut, 'heure' => $pointage->heure] : null,
-                    'pointable' => ! $pointage && $now->between($min, $max),
+                    'etat' => $etat,
+                    'pointable' => $etat === 'ouvert',
+                    'ouverture' => $min->format('H:i'),
+                    'fermeture' => $max->format('H:i'),
                     'fenetre' => $min->format('H:i').' — '.$max->format('H:i'),
                 ];
             });
 
         return response()->json([
             'code' => Enseignant::find($enseignantId)?->code_pointe,
-            'cours' => $result,
+            'maintenant' => $now->format('H:i'),
+            'cours' => $result->values(),
         ]);
     }
 
@@ -117,7 +129,8 @@ class PointageController extends Controller
         $distance = null;
 
         if (! config('pointage.mode_test')) {
-            $etab = Etablissement::first();
+            // La position de référence est celle de l'établissement de l'enseignant, jamais celle d'un autre établissement.
+            $etab = $request->user()->etablissement;
 
             if (! $etab || ! $etab->latitude || ! $etab->longitude) {
                 return response()->json(['message' => "Géolocalisation de l'établissement non configurée."], 422);

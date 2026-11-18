@@ -71,7 +71,7 @@ class DemoDataSeeder extends Seeder
                 'name' => 'Super Admin',
                 'password' => Hash::make('password'),
                 'role' => 'super_admin',
-                'etablissement_id' => $etablissement->id,
+                'etablissement_id' => null,
                 'email_verified_at' => now(),
             ]
         );

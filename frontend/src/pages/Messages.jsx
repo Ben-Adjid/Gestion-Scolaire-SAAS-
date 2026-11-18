@@ -188,7 +188,7 @@ export default function Messages() {
                               downloadFichier(m)
                             }}
                           >
-                            📎 Télécharger {m.fichier_nom}
+                            Télécharger {m.fichier_nom}
                           </button>
                         )}
                       </div>

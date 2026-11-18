@@ -45,28 +45,24 @@ export default function Pointages() {
       {stats && (
         <div className="stat-grid stat-grid--4">
           <div className="stat-card stat-card--indigo">
-            <span className="stat-icon">👩‍🏫</span>
             <div className="stat-body">
               <span className="stat-value">{stats.total}</span>
               <span className="stat-label">Enseignants</span>
             </div>
           </div>
           <div className="stat-card stat-card--green">
-            <span className="stat-icon">✅</span>
             <div className="stat-body">
               <span className="stat-value">{stats.pointes}</span>
               <span className="stat-label">Pointés</span>
             </div>
           </div>
           <div className="stat-card stat-card--amber">
-            <span className="stat-icon">⏰</span>
             <div className="stat-body">
               <span className="stat-value">{stats.retards}</span>
               <span className="stat-label">En retard</span>
             </div>
           </div>
           <div className="stat-card stat-card--rose">
-            <span className="stat-icon">🚫</span>
             <div className="stat-body">
               <span className="stat-value">{stats.absents}</span>
               <span className="stat-label">Absents</span>

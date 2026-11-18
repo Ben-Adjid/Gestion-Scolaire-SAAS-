@@ -163,7 +163,7 @@ export default function Classes() {
                       <td className="cell-strong">
                         {item.nom}
                         {['3ème', 'Terminale'].includes(item.niveau) && (
-                          <span className="badge badge--exam">🎓 Examen</span>
+                          <span className="badge badge--exam">Examen</span>
                         )}
                       </td>
                       <td>
@@ -174,20 +174,14 @@ export default function Classes() {
                       <td className="cell-actions">
                         <button
                           type="button"
-                          className="icon-btn"
-                          title="Modifier"
+                          className="btn btn--ghost btn--sm"
                           onClick={() => openEdit(item)}
-                        >
-                          ✏️
-                        </button>
+                        >Modifier</button>
                         <button
                           type="button"
-                          className="icon-btn"
-                          title="Supprimer"
+                          className="btn btn--ghost btn--sm"
                           onClick={() => setDeleting(item)}
-                        >
-                          🗑️
-                        </button>
+                        >Supprimer</button>
                       </td>
                     </tr>
                   ))}

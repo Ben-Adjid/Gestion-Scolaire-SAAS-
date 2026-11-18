@@ -119,6 +119,10 @@ class MessageController extends Controller
 
     private function destinataires(User $sender, array $validated): Collection
     {
+        if ($sender->role === 'parent') {
+            return $this->destinatairesParent($sender, $validated);
+        }
+
         if (! empty($validated['recipient_id'])) {
             return User::whereKey($validated['recipient_id'])
                 ->where('etablissement_id', $sender->etablissement_id)
@@ -132,6 +136,26 @@ class MessageController extends Controller
             'administration' => User::where('role', 'admin')->where('etablissement_id', $sender->etablissement_id)->get(),
             default => collect(),
         };
+    }
+
+    /**
+     * Un parent écrit uniquement à l'administration de son établissement (formule VIP et plus).
+     */
+    private function destinatairesParent(User $sender, array $validated): Collection
+    {
+        abort_unless(in_array('espace_parent', $sender->etablissement?->fonctionnalites() ?? [], true), 403,
+            "La messagerie avec l'administration est incluse dans la formule VIP.");
+
+        $admins = User::where('role', 'admin')->where('etablissement_id', $sender->etablissement_id);
+
+        if (! empty($validated['recipient_id'])) {
+            abort_unless((clone $admins)->whereKey($validated['recipient_id'])->exists(), 403, "Un parent écrit uniquement à l'administration.");
+            $admins->whereKey($validated['recipient_id']);
+        } else {
+            abort_unless(($validated['cible'] ?? null) === 'administration', 403, "Un parent écrit à l'administration.");
+        }
+
+        return $admins->get();
     }
 
     private function peutDiffuserAuxEnseignants(User $sender): bool

@@ -1,16 +1,23 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useEtablissement } from '../context/EtablissementContext'
 import { ROLE_LABELS } from '../utils/constants'
+import { aLaFonctionnalite } from '../utils/plans'
 import Assistant from './Assistant'
+import RechercheGlobale from './RechercheGlobale'
+import BandeauAbonnement from './BandeauAbonnement'
+import SupportModal from './SupportModal'
+import { appliquerTheme } from '../utils/themes'
 
 const NAV_SECTIONS = [
   {
     label: 'Principal',
     items: [
-      { to: '/', label: 'Tableau de bord', icon: 'home', end: true },
-      { to: '/messages', label: 'Messagerie', icon: 'mail' },
+      { to: '/', label: 'Tableau de bord', icon: 'home', end: true, roles: ['super_admin', 'admin', 'proviseur', 'censeur', 'cpe', 'enseignant', 'secretaire', 'gestionnaire', 'agent_comptable', 'responsable_it'] },
+      { to: '/messages', label: 'Messagerie', icon: 'mail', roles: ['super_admin', 'admin', 'proviseur', 'censeur', 'cpe', 'enseignant', 'secretaire', 'gestionnaire', 'agent_comptable', 'responsable_it'] },
+      { to: '/espace-parent', label: 'Mes enfants', icon: 'student', roles: ['parent'], feature: 'espace_parent' },
+      { to: '/chatboard', label: 'Échanges avec l’administration', icon: 'mail', roles: ['parent'], feature: 'espace_parent' },
     ],
   },
   {
@@ -21,6 +28,12 @@ const NAV_SECTIONS = [
       { to: '/inscriptions', label: 'Inscriptions', icon: 'clipboard', roles: ['super_admin', 'admin', 'proviseur', 'secretaire'] },
       { to: '/enseignants', label: 'Enseignants', icon: 'users', roles: ['super_admin', 'admin', 'proviseur', 'censeur'] },
       { to: '/matieres', label: 'Matières', icon: 'book', roles: ['super_admin', 'admin', 'proviseur', 'censeur'] },
+      { to: '/calendrier', label: 'Calendrier scolaire', icon: 'calendar', roles: ['super_admin', 'admin', 'proviseur', 'censeur', 'cpe', 'enseignant', 'secretaire', 'gestionnaire', 'agent_comptable', 'responsable_it', 'parent'], feature: 'calendrier_scolaire' },
+      { to: '/planning-examens', label: 'Planning des examens', icon: 'calendar', roles: ['super_admin', 'admin', 'proviseur', 'censeur', 'cpe', 'enseignant', 'secretaire'], feature: 'planning_examens' },
+      { to: '/actualites', label: 'Fil d’actualité', icon: 'mail', roles: ['super_admin', 'admin', 'proviseur', 'censeur', 'cpe', 'enseignant', 'secretaire', 'gestionnaire', 'agent_comptable', 'responsable_it', 'parent'], feature: 'fil_actualite' },
+      { to: '/cahier-texte', label: 'Cahier de texte', icon: 'book', roles: ['super_admin', 'admin', 'proviseur', 'censeur', 'enseignant', 'parent'], feature: 'cahier_texte' },
+      { to: '/donnees', label: 'Import & export', icon: 'folder', roles: ['super_admin', 'admin', 'proviseur', 'secretaire'] },
+      { to: '/justifications', label: 'Justifications', icon: 'clipboard', roles: ['super_admin', 'admin', 'proviseur', 'censeur', 'cpe'], feature: 'espace_parent' },
     ],
   },
   {
@@ -28,6 +41,7 @@ const NAV_SECTIONS = [
     items: [
       { to: '/emploi-du-temps', label: 'Emploi du temps', icon: 'calendar', roles: ['super_admin', 'admin', 'proviseur', 'censeur', 'cpe', 'enseignant', 'secretaire'] },
       { to: '/pointer', label: 'Pointer', icon: 'check', roles: ['enseignant'] },
+      { to: '/appels', label: 'Faire l’appel', icon: 'check', roles: ['enseignant', 'admin', 'proviseur', 'censeur', 'cpe', 'secretaire'] },
       { to: '/presences', label: 'Présences & Absences', icon: 'check', roles: ['super_admin', 'admin', 'proviseur', 'censeur', 'cpe', 'secretaire'] },
       { to: '/presence-enseignants', label: 'Présence des enseignants', icon: 'clock', roles: ['super_admin', 'admin', 'proviseur', 'censeur'] },
     ],
@@ -36,6 +50,7 @@ const NAV_SECTIONS = [
     label: 'Finances',
     items: [
       { to: '/frais-scolaires', label: 'Frais scolaires', icon: 'cash', roles: ['super_admin', 'admin', 'proviseur', 'gestionnaire', 'agent_comptable'] },
+      { to: '/depenses', label: 'Dépenses & résultat', icon: 'cash', roles: ['super_admin', 'admin', 'proviseur', 'gestionnaire', 'agent_comptable'], feature: 'comptabilite_avancee' },
     ],
   },
   {
@@ -44,23 +59,37 @@ const NAV_SECTIONS = [
       { to: '/notes', label: 'Notes', icon: 'pen', roles: ['super_admin', 'admin', 'proviseur', 'enseignant', 'censeur'] },
       { to: '/bulletins', label: 'Bulletins', icon: 'report', roles: ['super_admin', 'admin', 'proviseur', 'censeur', 'cpe'] },
       { to: '/palmares', label: "Tableau d'honneur", icon: 'trophy', roles: ['super_admin', 'admin', 'proviseur', 'censeur', 'cpe'] },
-      { to: '/examens', label: "Classes d'examen", icon: 'exam', roles: ['super_admin', 'admin', 'proviseur', 'censeur'] },
-      { to: '/dossiers-examen', label: "Dossiers d'examen", icon: 'folder', roles: ['super_admin', 'admin', 'proviseur', 'censeur', 'cpe', 'secretaire'] },
+      { to: '/conseil-classe', label: 'Conseil de classe', icon: 'school', roles: ['super_admin', 'admin', 'proviseur', 'censeur'], feature: 'conseil_classe' },
+      { to: '/examens', label: "Classes d'examen", icon: 'exam', roles: ['super_admin', 'admin', 'proviseur', 'censeur'], feature: 'classes_examen' },
+      { to: '/dossiers-examen', label: "Dossiers d'examen", icon: 'folder', roles: ['super_admin', 'admin', 'proviseur', 'censeur', 'cpe', 'secretaire'], feature: 'dossiers_examen' },
       { to: '/eleves-difficulte', label: 'Élèves en difficulté', icon: 'alert', roles: ['super_admin', 'admin', 'proviseur', 'censeur', 'cpe'] },
     ],
   },
   {
     label: 'Administration',
     items: [
-      { to: '/utilisateurs', label: 'Utilisateurs', icon: 'users', roles: ['super_admin', 'admin'] },
-      { to: '/audits', label: "Journal d'audit", icon: 'clock', roles: ['super_admin', 'admin', 'responsable_it'] },
+      { to: '/utilisateurs', label: 'Utilisateurs', icon: 'users', roles: ['super_admin', 'admin', 'proviseur'] },
+      { to: '/audits', label: "Journal d'audit", icon: 'clock', roles: ['super_admin', 'admin', 'responsable_it'], feature: 'journal_export' },
+      { to: '/analyses', label: 'Analyses avancées', icon: 'report', roles: ['super_admin', 'admin', 'proviseur', 'censeur'], feature: 'analyses_avancees' },
+      { to: '/archives', label: 'Archives annuelles', icon: 'folder', roles: ['super_admin', 'admin'], feature: 'archivage' },
+      { to: '/groupe', label: 'Groupe scolaire', icon: 'school', roles: ['super_admin', 'admin'], feature: 'multi_sites' },
+      { to: '/securite', label: 'Sécurité du compte', icon: 'settings', roles: ['super_admin', 'admin', 'proviseur', 'censeur', 'cpe', 'enseignant', 'secretaire', 'gestionnaire', 'agent_comptable', 'responsable_it'] },
+      { to: '/personnalisation', label: 'Personnalisation', icon: 'settings', roles: ['super_admin', 'admin'], feature: 'personnalisation' },
+      { to: '/acces-api', label: 'Accès API', icon: 'settings', roles: ['super_admin', 'admin'], feature: 'api' },
+      { to: '/support', label: 'Support prioritaire', icon: 'mail', roles: ['super_admin', 'admin', 'proviseur'], feature: 'support_prioritaire' },
       { to: '/parametres', label: 'Règles de gestion', icon: 'settings', roles: ['super_admin', 'admin', 'proviseur'] },
     ],
   },
   {
-    label: '🛡️ Plateforme SaaS',
+    label: 'Plateforme SaaS',
     items: [
-      { to: '/super-admin', label: 'Gestion des écoles', icon: 'school', roles: ['super_admin'] },
+      { to: '/super-admin', label: 'Écoles', icon: 'school', roles: ['super_admin'], end: true },
+      { to: '/super-admin/abonnements', label: 'Abonnements', icon: 'cash', roles: ['super_admin'] },
+      { to: '/super-admin/groupes', label: 'Groupes scolaires', icon: 'school', roles: ['super_admin'] },
+      { to: '/super-admin/annonces', label: 'Annonces', icon: 'mail', roles: ['super_admin'] },
+      { to: '/super-admin/support', label: 'Support', icon: 'clipboard', roles: ['super_admin'] },
+      { to: '/super-admin/risque', label: 'Écoles à risque', icon: 'alert', roles: ['super_admin'] },
+      { to: '/super-admin/journal', label: 'Journal', icon: 'clock', roles: ['super_admin'] },
     ],
   },
 ]
@@ -203,6 +232,14 @@ export default function AppLayout() {
   const { etablissement } = useEtablissement()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [supportOuvert, setSupportOuvert] = useState(false)
+  const [menuOuvert, setMenuOuvert] = useState(false)
+
+  // L'assistant consulte les données de gestion de l'établissement : il n'est pas proposé aux parents ni à la plateforme.
+  const assistantDisponible = !['parent', 'super_admin'].includes(user?.role)
+
+  // Chaque type de compte a son ambiance visuelle ; le thème par défaut revient à la sortie.
+  useEffect(() => appliquerTheme(user?.role), [user?.role])
 
   const handleLogout = async () => {
     await logout()
@@ -216,12 +253,15 @@ export default function AppLayout() {
     .join('')
     .toUpperCase()
 
+  // La plateforme ne voit que son tableau de bord et la gestion des écoles : jamais les pages métier d'une école.
+  const estSuperAdmin = user?.role === 'super_admin'
   const visibleSections = NAV_SECTIONS
     .map((section) => ({
       ...section,
-      items: section.items.filter(
-        (item) => !item.roles || item.roles.includes(user?.role) || (user?.role === 'super_admin' && item.roles.includes('admin'))
-      ),
+      items: section.items.filter((item) => {
+        if (estSuperAdmin) return item.to === '/' || section.label === 'Plateforme SaaS'
+        return (!item.roles || item.roles.includes(user?.role)) && aLaFonctionnalite(user, etablissement, item.feature)
+      }),
     }))
     .filter((section) => section.items.length > 0)
 
@@ -230,13 +270,15 @@ export default function AppLayout() {
       <aside className={`sidebar ${sidebarOpen ? 'sidebar--open' : ''}`}>
         <div className="sidebar-brand">
           {etablissement.logo_path ? (
-            <img src={`/${etablissement.logo_path}`} alt="Logo" className="brand-logo-img" />
+            <img src={`/${etablissement.logo_path}`} alt="" className="brand-logo-img" />
           ) : (
-            <span className="brand-logo">🎓</span>
+            <span className="brand-logo" aria-hidden="true">{(etablissement.nom || 'E').charAt(0).toUpperCase()}</span>
           )}
           <div className="brand-texts">
             <span className="brand-text">{etablissement.nom}</span>
-            <span className="brand-subtitle">6ème → Terminale</span>
+            <span className="brand-subtitle">
+              {estSuperAdmin ? 'Plateforme' : etablissement.annee_scolaire ? `Année ${etablissement.annee_scolaire}` : ''}
+            </span>
           </div>
         </div>
         <nav className="sidebar-nav">
@@ -275,8 +317,7 @@ export default function AppLayout() {
               <path d="M16 17l5-5-5-5" />
               <path d="M21 12H9" />
             </svg>
-            <span>Déconnexion</span>
-          </button>
+            <span>Déconnexion</span></button>
         </div>
       </aside>
 
@@ -299,22 +340,65 @@ export default function AppLayout() {
           >
             <span />
             <span />
-            <span />
-          </button>
+            <span /></button>
           <div className="topbar-title">{etablissement.nom}</div>
+          {!['parent', 'super_admin'].includes(user?.role) && <RechercheGlobale />}
+          <div className="topbar-actions">
+            {assistantDisponible && (
+              <button
+                type="button"
+                className="topbar-action topbar-action--ghost"
+                onClick={() => window.dispatchEvent(new Event('ouvrir-assistant'))}
+              >
+                Assistant
+              </button>
+            )}
+            {!estSuperAdmin && (
+              <button type="button" className="topbar-action" onClick={() => setSupportOuvert(true)}>
+                Support
+              </button>
+            )}
+          </div>
           <div className="topbar-user">
-            <span className="avatar">{initials}</span>
-            <div className="topbar-user-info">
-              <span className="topbar-user-name">{user?.name}</span>
-              <span className="topbar-user-role">{ROLE_LABELS[user?.role] || user?.role}</span>
-            </div>
+            <button
+              type="button"
+              className="avatar-bouton"
+              onClick={() => setMenuOuvert((ouvert) => !ouvert)}
+              aria-expanded={menuOuvert}
+              aria-label="Menu du compte"
+            >
+              <span className="avatar avatar--theme">{initials}</span></button>
+            {menuOuvert && (
+              <div className="menu-compte" role="menu">
+                <div className="menu-compte-entete">
+                  <strong>{user?.name}</strong>
+                  <span className="muted">{ROLE_LABELS[user?.role] || user?.role}</span>
+                </div>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="menu-compte-item"
+                  onClick={() => {
+                    setMenuOuvert(false)
+                    setSupportOuvert(true)
+                  }}
+                >
+                  Contacter le support
+                </button>
+                <button type="button" role="menuitem" className="menu-compte-item menu-compte-item--danger" onClick={handleLogout}>
+                  Se déconnecter
+                </button>
+              </div>
+            )}
           </div>
         </header>
         <main className="content">
+          <BandeauAbonnement />
           <Outlet />
         </main>
       </div>
-      <Assistant />
+      <SupportModal open={supportOuvert} onClose={() => setSupportOuvert(false)} />
+      {assistantDisponible && <Assistant />}
     </div>
   )
 }

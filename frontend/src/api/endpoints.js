@@ -6,6 +6,12 @@ export const authApi = {
   logout: () => client.post('/logout'),
 }
 
+export const motDePasseApi = {
+  oublie: (email) => client.post('/mot-de-passe/oublie', { email }),
+  reinitialiser: (data) => client.post('/mot-de-passe/reinitialiser', data),
+  changer: (data) => client.post('/mot-de-passe/changer', data),
+}
+
 export const dashboardApi = {
   index: () => client.get('/dashboard'),
 }
@@ -35,6 +41,8 @@ export const etudiantsApi = {
   update: (id, data) => client.put(`/etudiants/${id}`, data),
   remove: (id) => client.delete(`/etudiants/${id}`),
   lookup: (matricule) => client.get('/etudiants/lookup', { params: { matricule } }),
+  doublons: (params) => client.get('/etudiants/doublons', { params }),
+  suivi: (id) => client.get(`/etudiants/${id}/suivi`),
 }
 
 export const matieresApi = {
@@ -146,11 +154,13 @@ export const examensApi = {
 export const dossiersApi = {
   index: (params) => client.get('/dossiers-examen', { params }),
   save: (etudiantId, data) => client.post(`/dossiers-examen/${etudiantId}`, data),
+  fichier: (etudiantId, type) => client.get(`/dossiers-examen/${etudiantId}/fichiers/${type}`, { responseType: 'blob' }),
 }
 
 export const dossierInscriptionApi = {
   show: (etudiantId) => client.get(`/etudiants/${etudiantId}/dossier`),
   save: (etudiantId, data) => client.post(`/etudiants/${etudiantId}/dossier`, data),
+  fichier: (etudiantId, type) => client.get(`/etudiants/${etudiantId}/dossier/fichiers/${type}`, { responseType: 'blob' }),
 }
 
 export const auditsApi = {
@@ -164,11 +174,89 @@ export const etablissementApi = {
 
 export const fraisScolairesApi = {
   list: (params) => client.get('/frais-scolaires', { params }),
-  stats: () => client.get('/frais-scolaires/stats'),
+  stats: (params) => client.get('/frais-scolaires/stats', { params }),
   bulkInit: (data) => client.post('/frais-scolaires/bulk', data),
   create: (data) => client.post('/frais-scolaires', data),
   update: (id, data) => client.put(`/frais-scolaires/${id}`, data),
   remove: (id) => client.delete(`/frais-scolaires/${id}`),
   paiements: (id) => client.get(`/frais-scolaires/${id}/paiements`),
   addPaiement: (id, data) => client.post(`/frais-scolaires/${id}/paiements`, data),
+  relancer: (id) => client.post(`/frais-scolaires/${id}/relancer`),
+}
+
+export const conseilApi = {
+  prepare: (classeId, trimestre) => client.get(`/classes/${classeId}/conseil`, { params: { trimestre } }),
+  list: (classeId) => client.get(`/classes/${classeId}/conseils`),
+  show: (classeId, id) => client.get(`/classes/${classeId}/conseils/${id}`),
+  create: (classeId, data) => client.post(`/classes/${classeId}/conseils`, data),
+}
+
+export const exportApi = {
+  fraisCsv: (annee) => client.get('/frais-scolaires/export', { params: { annee_scolaire: annee }, responseType: 'blob' }),
+  recu: (paiementId) => client.get(`/paiements/${paiementId}/recu`, { responseType: 'blob' }),
+}
+
+export function telecharger(blob, nomFichier) {
+  const url = URL.createObjectURL(blob)
+  const lien = document.createElement('a')
+  lien.href = url
+  lien.download = nomFichier
+  document.body.appendChild(lien)
+  lien.click()
+  lien.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+export const espaceParentApi = {
+  enfants: () => client.get('/parent/enfants'),
+  resume: (id) => client.get(`/parent/enfants/${id}/resume`),
+  justifier: (etudiantId, absenceId, motif) =>
+    client.post(`/parent/enfants/${etudiantId}/absences/${absenceId}/justifier`, { motif }),
+  mesJustifications: () => client.get('/parent/justifications'),
+}
+
+// Décision du CPE / direction sur une demande de justification.
+export const justificationsApi = {
+  liste: (statut) => client.get('/justifications', { params: statut ? { statut } : {} }),
+  decider: (id, decision, commentaire) => client.post(`/justifications/${id}/decision`, { decision, commentaire }),
+}
+
+// Formule Entreprise : clés d'accès à l'API.
+export const apiTokensApi = {
+  liste: () => client.get('/api-tokens'),
+  creer: (name) => client.post('/api-tokens', { name }),
+  revoquer: (id) => client.delete(`/api-tokens/${id}`),
+}
+
+// Formule Entreprise : support prioritaire.
+export const supportApi = {
+  liste: () => client.get('/support'),
+  envoyer: (data) => client.post('/support', data),
+}
+
+// Formules VIP et Entreprise : analyses avancées.
+export const analysesApi = {
+  index: () => client.get('/analyses'),
+}
+
+// Console super admin : abonnements et support.
+export const abonnementsApi = {
+  renouveler: (etablissementId, data) => client.post(`/super-admin/etablissements/${etablissementId}/renouveler`, data),
+  paiements: (etablissementId) => client.get(`/super-admin/etablissements/${etablissementId}/paiements-abonnement`),
+  recu: (paiementId) => client.get(`/super-admin/paiements-abonnement/${paiementId}/recu`, { responseType: 'blob' }),
+  demandes: () => client.get('/super-admin/demandes-abonnement'),
+  justificatifDemande: (id) => client.get(`/super-admin/demandes-abonnement/${id}/justificatif`, { responseType: 'blob' }),
+  approuverDemande: (id) => client.post(`/super-admin/demandes-abonnement/${id}/approuver`),
+  refuserDemande: (id, motif_refus) => client.post(`/super-admin/demandes-abonnement/${id}/refuser`, { motif_refus }),
+}
+
+export const renouvellementEtablissementApi = {
+  options: () => client.get('/abonnement/options'),
+  demandes: () => client.get('/abonnement/demandes'),
+  creer: (data) => client.post('/abonnement/demandes', data),
+}
+
+export const supportPlateformeApi = {
+  liste: () => client.get('/super-admin/support'),
+  repondre: (id, data) => client.post(`/super-admin/support/${id}`, data),
 }

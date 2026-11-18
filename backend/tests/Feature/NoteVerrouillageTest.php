@@ -63,14 +63,14 @@ class NoteVerrouillageTest extends TestCase
             'notes' => [['etudiant_id' => $etudiant->id, 'valeur' => 15]],
         ])->assertOk();
 
-        // Tentative de re-modification par l'enseignant -> 403
+        // Tentative de re-modification par l'enseignant -> 422 (saisie refusée en bloc)
         $this->postJson('/api/notes/bulk', [
             'matiere_id' => $matiere->id,
             'trimestre' => 1,
             'type' => 'devoir',
             'valider' => false,
             'notes' => [['etudiant_id' => $etudiant->id, 'valeur' => 5]],
-        ])->assertStatus(403);
+        ])->assertStatus(422);
 
         // Le proviseur peut modifier une note validée
         Sanctum::actingAs(User::factory()->create(['role' => 'proviseur']));

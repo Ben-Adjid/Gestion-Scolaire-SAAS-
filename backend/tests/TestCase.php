@@ -14,7 +14,7 @@ abstract class TestCase extends BaseTestCase
 
         Etablissement::firstOrCreate(
             ['id' => 1],
-            ['nom' => 'Etablissement de test']
+            ['nom' => 'Etablissement de test', 'plan' => 'vip', 'statut_abonnement' => 'actif']
         );
 
         Cache::flush();

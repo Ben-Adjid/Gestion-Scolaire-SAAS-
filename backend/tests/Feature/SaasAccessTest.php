@@ -12,7 +12,7 @@ class SaasAccessTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_superadmin_accede_aux_fonctionnalites_metier_et_saas(): void
+    public function test_superadmin_gere_la_plateforme_sans_lire_les_donnees_des_ecoles(): void
     {
         $superadmin = User::factory()->create([
             'role' => 'super_admin',
@@ -20,8 +20,16 @@ class SaasAccessTest extends TestCase
         ]);
         Sanctum::actingAs($superadmin);
 
-        $this->getJson('/api/classes')->assertOk();
+        // Gestion SaaS : autorisée.
         $this->getJson('/api/super-admin/dashboard')->assertOk();
+        $this->getJson('/api/super-admin/etablissements')->assertOk();
+        $this->getJson('/api/etablissement')->assertOk()->assertJsonPath('nom', 'Plateforme de gestion scolaire');
+
+        // Données scolaires d'un établissement : refusées, quel que soit le module.
+        $this->getJson('/api/classes')
+            ->assertForbidden()
+            ->assertJsonPath('code', 'donnees_scolaires_reservees');
+        $this->getJson('/api/etudiants')->assertForbidden();
     }
 
     public function test_un_abonnement_suspendu_bloque_l_espace_metier(): void
@@ -39,7 +47,7 @@ class SaasAccessTest extends TestCase
             ->assertJsonPath('code', 'subscription_inactive');
     }
 
-    public function test_un_abonnement_suspendu_refuse_aussi_la_connexion(): void
+    public function test_un_abonnement_suspendu_peut_se_connecter_pour_demander_un_renouvellement(): void
     {
         $etablissement = Etablissement::first();
         $etablissement->update(['statut_abonnement' => 'suspendu']);
@@ -49,10 +57,14 @@ class SaasAccessTest extends TestCase
             'etablissement_id' => $etablissement->id,
         ]);
 
-        $this->postJson('/api/login', [
+        $connexion = $this->postJson('/api/login', [
             'email' => 'suspendu@test.com',
             'password' => 'password',
-        ])->assertStatus(403)
+        ])->assertOk()->assertJsonStructure(['token', 'user']);
+
+        $this->withToken($connexion->json('token'))->getJson('/api/me')->assertOk();
+        $this->withToken($connexion->json('token'))->getJson('/api/classes')
+            ->assertForbidden()
             ->assertJsonPath('code', 'subscription_inactive');
     }
 
