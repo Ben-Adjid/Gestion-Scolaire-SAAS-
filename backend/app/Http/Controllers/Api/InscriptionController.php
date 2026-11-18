@@ -46,7 +46,8 @@ class InscriptionController extends Controller
     {
         $data = $request->validated();
 
-        $inscription = DB::transaction(function () use ($data) {
+        $compteParent = null;
+        $inscription = DB::transaction(function () use ($data, $request, &$compteParent) {
             if (empty($data['etudiant_id'])) {
                 $etudiant = Etudiant::create([
                     'nom' => $data['nom'],
@@ -59,9 +60,15 @@ class InscriptionController extends Controller
                 $data['etudiant_id'] = $etudiant->id;
             }
 
-            return Inscription::create(collect($data)->only([
+            $inscription = Inscription::create(collect($data)->only([
                 'etudiant_id', 'classe_id', 'annee_scolaire', 'type', 'date_inscription', 'statut',
             ])->all());
+
+            // Compte parent : créé, ou parent existant relié (frère/sœur, réinscription). Une erreur annule l'inscription.
+            $compteParent = app(\App\Services\CompteParentService::class)
+                ->rattacher(Etudiant::findOrFail($data['etudiant_id']), $data['parent'] ?? null, $request->user());
+
+            return $inscription;
         });
 
         AuditLogger::log($request->user(), 'création', 'inscriptions', $inscription->id,
@@ -70,6 +77,7 @@ class InscriptionController extends Controller
         return response()->json([
             'message' => 'Inscription enregistrée avec succès.',
             'inscription' => $inscription->load(['etudiant', 'classe']),
+            'compte_parent' => $compteParent,
         ], 201);
     }
 

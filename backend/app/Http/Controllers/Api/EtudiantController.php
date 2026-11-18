@@ -47,7 +47,8 @@ class EtudiantController extends Controller
     {
         $data = $request->validated();
         $confirmerDoublon = $data['confirmer_doublon'] ?? false;
-        unset($data['confirmer_doublon']);
+        $parent = $data['parent'] ?? null;
+        unset($data['confirmer_doublon'], $data['parent']);
 
         $doublons = $this->trouverDoublons($data);
         if ($doublons->isNotEmpty() && ! $confirmerDoublon) {
@@ -65,7 +66,11 @@ class EtudiantController extends Controller
             ], 409);
         }
 
-        $etudiant = Etudiant::create($data);
+        [$etudiant, $compteParent] = \Illuminate\Support\Facades\DB::transaction(function () use ($data, $parent) {
+            $etudiant = Etudiant::create($data);
+
+            return [$etudiant, app(\App\Services\CompteParentService::class)->rattacher($etudiant, $parent, auth()->user())];
+        });
 
         AuditLogger::log(auth()->user(), 'create', 'Etudiant', $etudiant->id, "Nouvel étudiant : {$etudiant->nom} {$etudiant->prenom}");
         if ($doublons->isNotEmpty()) {
@@ -73,7 +78,34 @@ class EtudiantController extends Controller
                 "Création confirmée malgré un doublon potentiel.");
         }
 
-        return response()->json($etudiant, 201);
+        return response()->json($etudiant->toArray() + ['compte_parent' => $compteParent], 201);
+    }
+
+    /** Élève déjà inscrit : créer (ou relier) le compte de son parent. */
+    public function compteParent(Request $request, Etudiant $etudiant, \App\Services\CompteParentService $comptes)
+    {
+        abort_unless($comptes->disponible($etudiant), 403, 'L’espace parent est inclus dans la formule VIP.');
+        $data = $request->validate(\App\Services\CompteParentService::regles() + ['parent' => ['required', 'array']]);
+
+        $resultat = \Illuminate\Support\Facades\DB::transaction(fn () => $comptes->rattacher($etudiant, $data['parent'], $request->user()));
+
+        return response()->json([
+            'message' => match ($resultat['statut']) {
+                'cree' => 'Compte parent créé et relié à l’élève.',
+                'relie' => 'Parent existant relié à l’élève.',
+                default => 'Ce parent est déjà relié à l’élève.',
+            },
+            'compte_parent' => $resultat,
+        ], $resultat['statut'] === 'cree' ? 201 : 200);
+    }
+
+    /** Parents reliés à l'élève (pour l'agent d'inscription). */
+    public function parents(Etudiant $etudiant)
+    {
+        return response()->json(
+            $etudiant->parents()->get(['users.id', 'users.name', 'users.email', 'users.telephone'])
+                ->map(fn ($p) => ['id' => $p->id, 'nom' => $p->name, 'email' => $p->email, 'telephone' => $p->telephone, 'lien' => $p->pivot->lien])
+        );
     }
 
     public function lookup(Request $request)

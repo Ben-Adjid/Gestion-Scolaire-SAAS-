@@ -43,6 +43,8 @@ export const etudiantsApi = {
   lookup: (matricule) => client.get('/etudiants/lookup', { params: { matricule } }),
   doublons: (params) => client.get('/etudiants/doublons', { params }),
   suivi: (id) => client.get(`/etudiants/${id}/suivi`),
+  parents: (id) => client.get(`/etudiants/${id}/parents`),
+  compteParent: (id, parent) => client.post(`/etudiants/${id}/compte-parent`, { parent }),
 }
 
 export const matieresApi = {

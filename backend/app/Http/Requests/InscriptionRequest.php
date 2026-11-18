@@ -14,7 +14,7 @@ class InscriptionRequest extends FormRequest
 
     public function rules()
     {
-        return [
+        return \App\Services\CompteParentService::regles() + [
             'etudiant_id' => ['required_if:type,ancien', 'nullable', 'exists:etudiants,id'],
             'nom' => ['required_without:etudiant_id', 'nullable', 'string', 'max:255'],
             'prenom' => ['required_without:etudiant_id', 'nullable', 'string', 'max:255'],

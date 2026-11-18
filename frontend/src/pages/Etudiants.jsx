@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useEtablissement } from '../context/EtablissementContext'
+import { aLaFonctionnalite } from '../utils/plans'
+import { ChampsParent, IdentifiantsParent, PARENT_VIDE, parentAEnvoyer } from '../components/CompteParent'
 import { classesApi, etudiantsApi } from '../api/endpoints'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
@@ -34,6 +37,15 @@ export default function Etudiants() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const canViewSuivi = ['admin', 'proviseur', 'censeur', 'cpe'].includes(user?.role)
+  const { etablissement } = useEtablissement()
+  // Compte parent : formules avec l'espace parent, agents d'inscription uniquement.
+  const gereParents = aLaFonctionnalite(user, etablissement, 'espace_parent') && ['admin', 'proviseur', 'secretaire'].includes(user?.role)
+  const [parent, setParent] = useState(PARENT_VIDE)
+  const [identifiants, setIdentifiants] = useState(null)
+  const [eleveParent, setEleveParent] = useState(null)
+  const [parentsLies, setParentsLies] = useState([])
+  const [erreursParent, setErreursParent] = useState({})
+  const [envoiParent, setEnvoiParent] = useState(false)
   const [items, setItems] = useState([])
   const [meta, setMeta] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -117,6 +129,7 @@ export default function Etudiants() {
     setForm(EMPTY_FORM)
     setFormErrors({})
     setDoublons([])
+    setParent(PARENT_VIDE)
     setModalOpen(true)
   }
 
@@ -166,8 +179,9 @@ export default function Etudiants() {
         await etudiantsApi.update(editing.id, payload)
         toast.success('Élève mis à jour avec succès.')
       } else {
-        await etudiantsApi.create(payload)
+        const res = await etudiantsApi.create({ ...payload, parent: gereParents ? parentAEnvoyer(parent) : undefined })
         toast.success('Élève créé avec succès.')
+        if (res.data.compte_parent) setIdentifiants({ ...res.data.compte_parent, eleve: `${form.prenom} ${form.nom}` })
       }
       setModalOpen(false)
       view === 'grouped' ? fetchGrouped() : fetchData()
@@ -179,6 +193,30 @@ export default function Etudiants() {
       }
     } finally {
       setSaving(false)
+    }
+  }
+
+  const ouvrirCompteParent = (item) => {
+    setEleveParent(item)
+    setParent(PARENT_VIDE)
+    setErreursParent({})
+    setParentsLies([])
+    etudiantsApi.parents(item.id).then((r) => setParentsLies(r.data)).catch(() => {})
+  }
+
+  const enregistrerCompteParent = async (e) => {
+    e.preventDefault()
+    setEnvoiParent(true)
+    setErreursParent({})
+    try {
+      const res = await etudiantsApi.compteParent(eleveParent.id, parent)
+      setIdentifiants({ ...res.data.compte_parent, eleve: `${eleveParent.prenom} ${eleveParent.nom}` })
+      setEleveParent(null)
+    } catch (err) {
+      setErreursParent(err.errors || {})
+      if (!err.errors) toast.error(err.message)
+    } finally {
+      setEnvoiParent(false)
     }
   }
 
@@ -440,6 +478,9 @@ export default function Etudiants() {
                           Suivi
                         </button>
                       )}
+                      {gereParents && (
+                        <button type="button" className="btn btn--ghost btn--sm" onClick={() => ouvrirCompteParent(item)}>Parent</button>
+                      )}
                       <button type="button" className="btn btn--ghost btn--sm" onClick={() => openEdit(item)}>Modifier</button>
                       <button type="button" className="btn btn--ghost btn--sm" onClick={() => setDeleting(item)}>Supprimer</button>
                     </td>
@@ -534,10 +575,37 @@ export default function Etudiants() {
             </Field>
           </div>
           <Field label="Adresse" htmlFor="adresse" error={formErrors.adresse?.[0]} hint="Optionnel">
-            <Input id="adresse" name="adresse" value={form.adresse} onChange={handleChange} placeholder="Ex : N’Djaména, Moursal" error={formErrors.adresse?.[0]} />
+            <Input id="adresse" name="adresse" value={form.adresse} onChange={handleChange} placeholder="Ex : quartier, ville" error={formErrors.adresse?.[0]} />
           </Field>
+          {!editing && gereParents && (
+            <ChampsParent
+              valeur={parent}
+              onChange={setParent}
+              erreurs={formErrors}
+            />
+          )}
         </form>
       </Modal>
+
+      <Modal
+        open={Boolean(eleveParent)}
+        title={eleveParent ? `Compte parent — ${eleveParent.prenom} ${eleveParent.nom}` : ''}
+        onClose={() => setEleveParent(null)}
+        footer={
+          <>
+            <button type="button" className="btn btn--ghost" onClick={() => setEleveParent(null)} disabled={envoiParent}>Fermer</button>
+            <button type="submit" form="compte-parent-form" className="btn btn--primary" disabled={envoiParent || !parent.nom.trim()}>
+              {envoiParent ? 'Enregistrement…' : 'Créer ou relier'}
+            </button>
+          </>
+        }
+      >
+        <form id="compte-parent-form" onSubmit={enregistrerCompteParent} noValidate>
+          <ChampsParent valeur={parent} onChange={setParent} erreurs={erreursParent} parentsLies={parentsLies} />
+        </form>
+      </Modal>
+
+      <IdentifiantsParent resultat={identifiants} eleve={identifiants?.eleve} onClose={() => setIdentifiants(null)} />
 
       <ConfirmDialog
         open={Boolean(deleting)}

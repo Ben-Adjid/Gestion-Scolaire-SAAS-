@@ -15,6 +15,7 @@ class UserController extends Controller
     public function __construct()
     {
         $this->middleware('role:admin,proviseur');
+        // Le quota de la formule porte sur le personnel : les comptes parents n'y sont pas comptés.
     }
 
     /** Un proviseur ne gère pas les comptes de direction ni de plateforme. */
@@ -44,7 +45,7 @@ class UserController extends Controller
         // Limite d'utilisateurs selon la formule (illimité pour Entreprise).
         $tenant = $request->user()->etablissement;
         $max = $tenant?->maxUtilisateurs();
-        if ($max !== null && User::where('etablissement_id', $tenant->id)->count() >= $max) {
+        if ($max !== null && User::where('etablissement_id', $tenant->id)->where('role', '!=', 'parent')->count() >= $max && $request->input('role') !== 'parent') {
             return response()->json([
                 'message' => "Limite de {$max} utilisateurs atteinte pour votre formule. Passez à une formule supérieure pour en ajouter.",
                 'code' => 'limite_utilisateurs',

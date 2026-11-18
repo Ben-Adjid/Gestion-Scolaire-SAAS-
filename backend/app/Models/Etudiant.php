@@ -68,6 +68,12 @@ class Etudiant extends Model
         return $matricule;
     }
 
+    /** Comptes parents reliés à l'élève. */
+    public function parents(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'parent_etudiant', 'etudiant_id', 'user_id')->withPivot('lien')->withTimestamps();
+    }
+
     public function classe(): BelongsTo
     {
         return $this->belongsTo(Classe::class);

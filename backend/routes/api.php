@@ -262,6 +262,9 @@ Route::middleware(['auth:sanctum', 'subscription', 'enforce_tenant', 'reserve_pa
         Route::post('/{autorisation}/sortie', [\App\Http\Controllers\Api\AutorisationSortieController::class, 'marquerSortie'])->whereNumber('autorisation');
         Route::get('/{autorisation}/document', [\App\Http\Controllers\Api\AutorisationSortieController::class, 'document'])->whereNumber('autorisation');
     });
+    // Compte parent d'un élève déjà inscrit : création ou rattachement (frères et sœurs).
+    Route::get('/etudiants/{etudiant}/parents', [EtudiantController::class, 'parents'])->middleware(['plan:espace_parent', 'role:admin,proviseur,secretaire']);
+    Route::post('/etudiants/{etudiant}/compte-parent', [EtudiantController::class, 'compteParent'])->middleware(['plan:espace_parent', 'role:admin,proviseur,secretaire']);
     Route::post('/etudiants/{etudiant}/parents/{parent}', [ParentController::class, 'lier'])->middleware('role:admin,secretaire');
     Route::delete('/etudiants/{etudiant}/parents/{parent}', [ParentController::class, 'delier'])->middleware('role:admin,secretaire');
     Route::get('/justifications', [JustificationController::class, 'index']);

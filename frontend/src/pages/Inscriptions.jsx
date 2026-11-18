@@ -10,6 +10,10 @@ import Alert from '../components/Alert'
 import { useToast } from '../components/Toast'
 import { Field, Input, Select } from '../components/Field'
 import { formatDate } from '../utils/format'
+import { ChampsParent, IdentifiantsParent, PARENT_VIDE, parentAEnvoyer } from '../components/CompteParent'
+import { useAuth } from '../context/AuthContext'
+import { useEtablissement } from '../context/EtablissementContext'
+import { aLaFonctionnalite } from '../utils/plans'
 
 const STATUTS = [
   { value: 'active', label: 'Active' },
@@ -85,6 +89,14 @@ export default function Inscriptions() {
   const [formErrors, setFormErrors] = useState({})
   const [saving, setSaving] = useState(false)
 
+  // Compte parent créé à l'inscription (formules avec l'espace parent).
+  const { user } = useAuth()
+  const { etablissement } = useEtablissement()
+  const espaceParent = aLaFonctionnalite(user, etablissement, 'espace_parent')
+  const [parent, setParent] = useState(PARENT_VIDE)
+  const [parentsLies, setParentsLies] = useState([])
+  const [identifiants, setIdentifiants] = useState(null)
+
   const [deleting, setDeleting] = useState(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
@@ -137,6 +149,8 @@ export default function Inscriptions() {
     setLookupError(null)
     setDossier(EMPTY_DOSSIER)
     setDocFiles({ acte_naissance: null, bulletin: null, photo: null })
+    setParent(PARENT_VIDE)
+    setParentsLies([])
     setModalOpen(true)
   }
 
@@ -150,6 +164,8 @@ export default function Inscriptions() {
       setLookupResult(res.data)
       setForm((prev) => ({ ...prev, etudiant_id: res.data.etudiant.id }))
       setDossier(dossierFrom(res.data.dossier))
+      setParentsLies([])
+      if (espaceParent) etudiantsApi.parents(res.data.etudiant.id).then((r) => setParentsLies(r.data)).catch(() => {})
       setDocFiles({ acte_naissance: null, bulletin: null, photo: null })
     } catch (err) {
       setLookupError(err.response?.data?.message || err.message)
@@ -263,6 +279,8 @@ export default function Inscriptions() {
 
       let etudiantId = form.etudiant_id
       let message = 'Inscription enregistrée avec succès.'
+      let compteParent = null
+      let nomEleve = ''
 
       if (editing) {
         await inscriptionsApi.update(editing.id, { ...form, statut: editing.statut, type: editing.type })
@@ -278,18 +296,24 @@ export default function Inscriptions() {
           date_inscription: form.date_inscription,
           statut: 'active',
           type: 'nouveau',
+          parent: espaceParent ? parentAEnvoyer(parent) : undefined,
         })
         etudiantId = res.data.inscription.etudiant_id
+        compteParent = res.data.compte_parent
+        nomEleve = `${form.prenom} ${form.nom}`
         message = 'Élève inscrit avec succès.'
       } else {
-        await inscriptionsApi.create({
+        const res = await inscriptionsApi.create({
           etudiant_id: form.etudiant_id,
           classe_id: form.classe_id,
           annee_scolaire: form.annee_scolaire,
           date_inscription: form.date_inscription,
           statut: 'active',
           type: 'ancien',
+          parent: espaceParent ? parentAEnvoyer(parent) : undefined,
         })
+        compteParent = res.data.compte_parent
+        nomEleve = `${lookupResult?.etudiant?.prenom || ''} ${lookupResult?.etudiant?.nom || ''}`
         message = 'Réinscription enregistrée avec succès.'
       }
 
@@ -302,10 +326,11 @@ export default function Inscriptions() {
       toast.success(message)
       setPendingDossierEtudiantId(null)
       setModalOpen(false)
+      if (compteParent) setIdentifiants({ ...compteParent, eleve: nomEleve.trim() })
       fetchData()
     } catch (err) {
       setFormErrors(err.errors || {})
-      if (Object.keys(err.errors || {}).some((champ) => ['nom', 'prenom', 'etudiant_id'].includes(champ))) {
+      if (Object.keys(err.errors || {}).some((champ) => ['nom', 'prenom', 'etudiant_id'].includes(champ) || champ.startsWith('parent.'))) {
         setEtape(1)
       }
       if (!err.errors || !Object.keys(err.errors).length) {
@@ -476,7 +501,9 @@ export default function Inscriptions() {
                 Précédent
               </button>
             )}
+            {/* Clé distincte par étape : sinon le même bouton passe en « submit » pendant le clic sur Continuer et envoie l'étape 2 vide. */}
             <button
+              key={etape === 1 ? 'continuer' : 'valider'}
               type={etape === 1 ? 'button' : 'submit'}
               form={etape === 2 ? 'inscription-form' : undefined}
               className="btn btn--primary"
@@ -491,7 +518,7 @@ export default function Inscriptions() {
         <form id="inscription-form" onSubmit={handleSubmit} noValidate>
           <div className="inscription-etapes" aria-label="Étapes du formulaire">
             <div className={`inscription-etape ${etape === 1 ? 'inscription-etape--active' : 'inscription-etape--done'}`}>
-              <span>1</span><strong>Élève</strong><small>Identité ou recherche</small>
+              <span>1</span><strong>Élève</strong><small>{espaceParent ? 'Identité et parent' : 'Identité ou recherche'}</small>
             </div>
             <div className={`inscription-etape ${etape === 2 ? 'inscription-etape--active' : ''}`}>
               <span>2</span><strong>Inscription</strong><small>Classe et documents</small>
@@ -546,6 +573,7 @@ export default function Inscriptions() {
                   </Select>
                 </Field>
               </div>
+              {espaceParent && <ChampsParent valeur={parent} onChange={setParent} erreurs={formErrors} />}
             </>
           )}
 
@@ -597,6 +625,9 @@ export default function Inscriptions() {
                     <div><span className="lookup-label">Décision</span><span className="badge">{lookupResult.decision.label}</span></div>
                   </div>
                 </div>
+              )}
+              {espaceParent && lookupResult && (
+                <ChampsParent valeur={parent} onChange={setParent} erreurs={formErrors} parentsLies={parentsLies} />
               )}
             </div>
           ) : null}
@@ -716,6 +747,8 @@ export default function Inscriptions() {
           )}
         </form>
       </Modal>
+
+      <IdentifiantsParent resultat={identifiants} eleve={identifiants?.eleve} onClose={() => setIdentifiants(null)} />
 
       <ConfirmDialog
         open={Boolean(deleting)}

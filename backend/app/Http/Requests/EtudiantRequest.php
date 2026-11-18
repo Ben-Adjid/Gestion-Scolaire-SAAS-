@@ -21,7 +21,7 @@ class EtudiantRequest extends FormRequest
     {
         $isUpdate = $this->isMethod('put') || $this->isMethod('patch');
         
-        return [
+        return \App\Services\CompteParentService::regles() + [
             'nom' => 'required|string|max:100',
             'prenom' => 'required|string|max:100',
             'date_naissance' => 'required|date|before:today',
