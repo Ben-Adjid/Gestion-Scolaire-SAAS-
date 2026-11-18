@@ -482,7 +482,13 @@ export default function Etudiants() {
                         <button type="button" className="btn btn--ghost btn--sm" onClick={() => ouvrirCompteParent(item)}>Parent</button>
                       )}
                       <button type="button" className="btn btn--ghost btn--sm" onClick={() => openEdit(item)}>Modifier</button>
-                      <button type="button" className="btn btn--ghost btn--sm" onClick={() => setDeleting(item)}>Supprimer</button>
+                      <button
+                        type="button"
+                        className="btn btn--ghost btn--sm"
+                        disabled={Boolean(item.a_notes_validees || item.a_paiements)}
+                        title={item.a_notes_validees || item.a_paiements ? 'Notes validées ou paiements : le dossier est conservé.' : 'Supprimer cet élève'}
+                        onClick={() => setDeleting(item)}
+                      >Supprimer</button>
                     </td>
                   </tr>
                 ))}

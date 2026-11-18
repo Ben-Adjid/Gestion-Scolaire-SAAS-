@@ -191,6 +191,8 @@ export default function Classes() {
                           type="button"
                           className="btn btn--ghost btn--sm"
                           onClick={() => setDeleting(item)}
+                        disabled={item.etudiants_count > 0}
+                        title={item.etudiants_count > 0 ? 'Des élèves sont rattachés : déplacez-les avant de supprimer la classe.' : 'Supprimer cette classe'}
                         >Supprimer</button>
                       </td>
                     </tr>
@@ -289,7 +291,7 @@ export default function Classes() {
         title="Supprimer la classe"
         message={
           deleting
-            ? `Voulez-vous vraiment supprimer la classe « ${deleting.nom} » ? Les élèves qui y sont rattachés seront conservés sans classe.`
+            ? `Voulez-vous vraiment supprimer la classe « ${deleting.nom} » ?`
             : ''
         }
         loading={deleteLoading}

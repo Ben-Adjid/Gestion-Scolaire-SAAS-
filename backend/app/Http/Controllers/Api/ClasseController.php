@@ -59,6 +59,14 @@ class ClasseController extends Controller
 
     public function update(ClasseRequest $request, Classe $classe): JsonResponse
     {
+        // Le niveau détermine la règle de passage des élèves déjà rattachés : il ne change plus une fois des élèves inscrits.
+        if ($request->validated('niveau') !== $classe->niveau && $classe->etudiants()->exists()) {
+            return response()->json([
+                'message' => 'Des élèves sont rattachés à cette classe : son niveau ne peut plus être changé. Créez une nouvelle classe.',
+                'errors' => ['niveau' => ['Le niveau ne peut pas changer tant que la classe a des élèves.']],
+            ], 422);
+        }
+
         $classe->update(array_filter($request->validated(), fn ($v, $k) => $k !== 'effectif_max' || $v !== null, ARRAY_FILTER_USE_BOTH));
 
         AuditLogger::log($request->user(), 'modification', 'classes', $classe->id,
@@ -72,6 +80,12 @@ class ClasseController extends Controller
 
     public function destroy(Classe $classe): JsonResponse
     {
+        if ($classe->etudiants()->exists() || $classe->inscriptions()->exists()) {
+            return response()->json([
+                'message' => 'Cette classe a des élèves ou des inscriptions : déplacez-les vers une autre classe avant de la supprimer.',
+            ], 422);
+        }
+
         $name = $classe->nom;
         $classe->delete();
 

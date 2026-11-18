@@ -449,16 +449,17 @@ export default function Inscriptions() {
                         </span>
                       </td>
                       <td className="cell-actions">
-                        <button
-                          type="button"
-                          className="btn btn--ghost btn--sm"
-                          onClick={() => openEdit(item)}
-                        >Modifier</button>
-                        <button
-                          type="button"
-                          className="btn btn--ghost btn--sm"
-                          onClick={() => setDeleting(item)}
-                        >Supprimer</button>
+                        {(() => {
+                          // Seule l'année en cours est modifiable : les années passées sont figées.
+                          const passee = etablissement?.annee_scolaire && item.annee_scolaire !== etablissement.annee_scolaire
+                          const raison = passee ? `Année ${item.annee_scolaire} : figée` : null
+                          return (
+                            <>
+                              <button type="button" className="btn btn--ghost btn--sm" disabled={passee} title={raison || 'Modifier'} onClick={() => openEdit(item)}>Modifier</button>
+                              <button type="button" className="btn btn--ghost btn--sm" disabled={passee} title={raison || 'Supprimer'} onClick={() => setDeleting(item)}>Supprimer</button>
+                            </>
+                          )
+                        })()}
                       </td>
                     </tr>
                   ))}
@@ -621,7 +622,7 @@ export default function Inscriptions() {
                     </div>
                   </div>
                   <div className="lookup-result-stats">
-                    <div><span className="lookup-label">Moyenne annuelle</span><span className="lookup-value">{lookupResult.moyenne_annuelle != null ? `${lookupResult.moyenne_annuelle}/20` : '—'}</span></div>
+                    <div><span className="lookup-label">Moyenne {lookupResult.annee_reference ? `(${lookupResult.annee_reference})` : "annuelle"}</span><span className="lookup-value">{lookupResult.moyenne_annuelle != null ? `${lookupResult.moyenne_annuelle}/20` : '—'}</span></div>
                     <div><span className="lookup-label">Décision</span><span className="badge">{lookupResult.decision.label}</span></div>
                   </div>
                 </div>
@@ -643,7 +644,7 @@ export default function Inscriptions() {
                 </div>
               </div>
               <div className="lookup-result-stats">
-                <div><span className="lookup-label">Moyenne annuelle</span><span className="lookup-value">{lookupResult.moyenne_annuelle != null ? `${lookupResult.moyenne_annuelle}/20` : 'Pas de notes'}</span></div>
+                <div><span className="lookup-label">Moyenne {lookupResult.annee_reference ? `(${lookupResult.annee_reference})` : "annuelle"}</span><span className="lookup-value">{lookupResult.moyenne_annuelle != null ? `${lookupResult.moyenne_annuelle}/20` : 'Pas de notes'}</span></div>
                 <div><span className="lookup-label">Décision</span><span className="badge">{lookupResult.decision.label}</span></div>
               </div>
               <p className="field-hint">Une montée de niveau n’est possible qu’avec une moyenne admise.</p>

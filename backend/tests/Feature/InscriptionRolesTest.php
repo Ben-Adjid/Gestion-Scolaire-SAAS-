@@ -29,8 +29,9 @@ class InscriptionRolesTest extends TestCase
     {
         $secretaire = User::factory()->create(['role' => 'secretaire']);
         $censeur = User::factory()->create(['role' => 'censeur']);
-        $etudiant = Etudiant::factory()->create();
-        $classe = Classe::factory()->create();
+        // Même niveau : pas de montée, donc pas de condition de moyenne (la règle est testée à part).
+        $classe = Classe::factory()->create(['niveau' => 'Terminale']);
+        $etudiant = Etudiant::factory()->create(['classe_id' => $classe->id]);
 
         Sanctum::actingAs($secretaire);
         $this->postJson('/api/inscriptions', $this->payload($etudiant->id, $classe->id))

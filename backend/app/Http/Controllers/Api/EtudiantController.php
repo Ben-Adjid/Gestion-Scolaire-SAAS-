@@ -22,7 +22,10 @@ class EtudiantController extends Controller
 
     public function index(Request $request)
     {
-        $query = Etudiant::query()->with('classe:id,nom,niveau');
+        // « a_historique » : l'élève a des notes validées ou des frais encaissés. Il ne peut alors plus être supprimé.
+        $query = Etudiant::query()->with('classe:id,nom,niveau')
+            ->withExists(['notes as a_notes_validees' => fn ($q) => $q->where('statut', 'valide')])
+            ->withExists(['fraisScolaires as a_paiements' => fn ($q) => $q->whereHas('paiements', fn ($p) => $p->where('statut', 'completed'))]);
 
         $classeIds = TeacherScope::classeIds($request->user());
         if ($classeIds !== null) {
@@ -130,6 +133,7 @@ class EtudiantController extends Controller
         return response()->json([
             'etudiant' => $etudiant->load('classe'),
             'dossier' => $etudiant->dossierInscription,
+            'annee_reference' => $bulletins->anneeDeReference($etudiant),
             'moyenne_annuelle' => $moyenne,
             'decision' => $bulletins->decision($moyenne),
         ]);
@@ -197,6 +201,8 @@ class EtudiantController extends Controller
     {
         $data = $request->validated();
         unset($data['confirmer_doublon']);
+        // Le matricule est attribué une fois pour toutes : il sert de référence aux familles et aux archives.
+        unset($data['matricule']);
         $etudiant->update($data);
 
         AuditLogger::log(auth()->user(), 'update', 'Etudiant', $etudiant->id, "Mise à jour de l'étudiant");
@@ -206,6 +212,12 @@ class EtudiantController extends Controller
 
     public function destroy(Etudiant $etudiant)
     {
+        if ($etudiant->notes()->where('statut', 'valide')->exists() || $etudiant->fraisScolaires()->whereHas('paiements', fn ($p) => $p->where('statut', 'completed'))->exists()) {
+            return response()->json([
+                'message' => 'Cet élève a des notes validées ou des paiements encaissés : son dossier est conservé pour l’historique et ne peut pas être supprimé.',
+            ], 422);
+        }
+
         AuditLogger::log(auth()->user(), 'delete', 'Etudiant', $etudiant->id, "Suppression de l'étudiant");
 
         $etudiant->delete();

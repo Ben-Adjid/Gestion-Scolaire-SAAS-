@@ -18,12 +18,24 @@ class Note extends Model
         'valeur',
         'statut',
         'appreciation',
+        'annee_scolaire',
     ];
 
     protected $casts = [
         'valeur' => 'float',
         'trimestre' => 'integer',
     ];
+
+    protected static function booted(): void
+    {
+        // Sans année explicite, la note prend l'année en cours de l'établissement de l'élève.
+        static::creating(function (Note $note) {
+            if (blank($note->annee_scolaire) && $note->etudiant_id) {
+                $note->annee_scolaire = Etudiant::withoutGlobalScopes()->with('etablissement')
+                    ->find($note->etudiant_id)?->etablissement?->annee_scolaire;
+            }
+        });
+    }
 
     public function etudiant(): BelongsTo
     {

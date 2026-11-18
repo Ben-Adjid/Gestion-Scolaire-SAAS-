@@ -35,9 +35,9 @@ class BulletinService
      * Passage en classe supérieure : l'élève doit être admis (moyenne annuelle au seuil d'admission).
      * Renvoie null si le passage est autorisé, sinon le motif à afficher.
      */
-    public function motifRefusPassage(Etudiant $etudiant, ?string $niveauCible): ?string
+    public function motifRefusPassage(Etudiant $etudiant, ?string $niveauCible, ?string $niveauActuel = null): ?string
     {
-        $rangActuel = $this->rangNiveau($etudiant->classe?->niveau);
+        $rangActuel = $this->rangNiveau($niveauActuel ?? $etudiant->classe?->niveau);
         $rangCible = $this->rangNiveau($niveauCible);
         if ($rangActuel === null || $rangCible === null || $rangCible <= $rangActuel) {
             return null;
@@ -77,9 +77,25 @@ class BulletinService
         };
     }
 
-    public function moyenneAnnuelle(Etudiant $etudiant): ?float
+    /**
+     * Année à partir de laquelle on juge un élève : celle de sa dernière inscription
+     * (l'année qu'il vient de terminer lors d'une réinscription), sinon celle de sa fiche.
+     */
+    public function anneeDeReference(Etudiant $etudiant): ?string
     {
-        $notes = $etudiant->notes()->with('matiere')->get();
+        $derniere = $etudiant->inscriptions()->orderByDesc('date_inscription')->orderByDesc('id')->value('annee_scolaire');
+
+        return $derniere ?: $etudiant->annee_scolaire;
+    }
+
+    public function moyenneAnnuelle(Etudiant $etudiant, ?string $annee = null): ?float
+    {
+        $annee ??= $this->anneeDeReference($etudiant);
+
+        $notes = $etudiant->notes()
+            ->when($annee, fn ($q) => $q->where('annee_scolaire', $annee))
+            ->with('matiere')
+            ->get();
 
         return $notes->isEmpty() ? null : round($this->moyennePonderee($notes), 2);
     }

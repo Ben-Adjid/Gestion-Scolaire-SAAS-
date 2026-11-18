@@ -7,6 +7,8 @@ use App\Http\Requests\InscriptionRequest;
 use App\Models\Inscription;
 use App\Models\Etudiant;
 use App\Models\Classe;
+use App\Models\Etablissement;
+use Illuminate\Validation\Rule;
 use App\Services\AuditLogger;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
@@ -40,6 +42,76 @@ class InscriptionController extends Controller
     public function show(Inscription $inscription): JsonResponse
     {
         return response()->json($inscription->load(['etudiant', 'classe']));
+    }
+
+    /** Une inscription se modifie et se supprime seulement pendant l'année scolaire en cours : les années passées sont figées. */
+    private function refuserSiAnneePassee(Inscription $inscription): ?JsonResponse
+    {
+        $anneeEcole = Etablissement::find($inscription->etablissement_id)?->annee_scolaire;
+        if ($anneeEcole && $inscription->annee_scolaire !== $anneeEcole) {
+            return response()->json([
+                'message' => "Cette inscription appartient à l’année {$inscription->annee_scolaire}. Les années passées ne sont plus modifiables.",
+            ], 422);
+        }
+
+        return null;
+    }
+
+    public function update(Request $request, Inscription $inscription): JsonResponse
+    {
+        if ($refus = $this->refuserSiAnneePassee($inscription)) {
+            return $refus;
+        }
+
+        $data = $request->validate([
+            'classe_id' => ['required', 'integer', 'exists:classes,id'],
+            'date_inscription' => ['required', 'date'],
+            'statut' => ['required', Rule::in(['active', 'terminee', 'annulee'])],
+        ]);
+
+        // Changer de classe vers un niveau supérieur suit la même règle qu'une réinscription.
+        $ancienne = Classe::find($inscription->classe_id);
+        $cible = Classe::find($data['classe_id']);
+        if ((int) $data['classe_id'] !== (int) $inscription->classe_id && $cible) {
+            $motif = app(\App\Services\BulletinService::class)->motifRefusPassage(
+                Etudiant::with('classe')->findOrFail($inscription->etudiant_id),
+                $cible->niveau,
+                $ancienne?->niveau,
+            );
+            if ($motif) {
+                return response()->json(['message' => $motif, 'errors' => ['classe_id' => [$motif]]], 422);
+            }
+        }
+
+        $inscription->update($data);
+        AuditLogger::log($request->user(), 'modification', 'inscriptions', $inscription->id, 'Modification de l’inscription');
+
+        return response()->json([
+            'message' => 'Inscription mise à jour avec succès.',
+            'inscription' => $inscription->fresh()->load(['etudiant', 'classe']),
+        ]);
+    }
+
+    public function destroy(Request $request, Inscription $inscription): JsonResponse
+    {
+        if ($refus = $this->refuserSiAnneePassee($inscription)) {
+            return $refus;
+        }
+
+        // Des notes ou des paiements de cette année rattachent l'élève à son inscription : on ne supprime pas.
+        $notes = \App\Models\Note::where('etudiant_id', $inscription->etudiant_id)
+            ->where('annee_scolaire', $inscription->annee_scolaire)->where('statut', 'valide')->exists();
+        $paiements = \App\Models\Paiement::where('etudiant_id', $inscription->etudiant_id)->where('statut', 'completed')->exists();
+        if ($notes || $paiements) {
+            return response()->json([
+                'message' => 'Cet élève a des notes validées ou des paiements pour cette année : son inscription ne peut plus être supprimée.',
+            ], 422);
+        }
+
+        $inscription->delete();
+        AuditLogger::log($request->user(), 'suppression', 'inscriptions', $inscription->id, 'Suppression de l’inscription');
+
+        return response()->json(['message' => 'Inscription supprimée.']);
     }
 
     public function store(InscriptionRequest $request): JsonResponse
