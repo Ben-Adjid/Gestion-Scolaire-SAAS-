@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { authApi } from '../api/endpoints'
 import { useEtablissement } from '../context/EtablissementContext'
 import Alert from '../components/Alert'
 import Spinner from '../components/Spinner'
 import { Field, Input } from '../components/Field'
 
 export default function Login() {
-  const { login } = useAuth()
+  const { login, ouvrirSession } = useAuth()
   const { etablissement } = useEtablissement()
   const navigate = useNavigate()
 
@@ -17,6 +18,42 @@ export default function Login() {
   const [globalError, setGlobalError] = useState(null)
   const [code, setCode] = useState('')
   const [etape2fa, setEtape2fa] = useState(false)
+  // Connexion par téléphone : code à six chiffres reçu par WhatsApp.
+  const [modeTel, setModeTel] = useState(false)
+  const [telephone, setTelephone] = useState('')
+  const [codeTel, setCodeTel] = useState('')
+  const [codeEnvoye, setCodeEnvoye] = useState(false)
+  const [infoTel, setInfoTel] = useState(null)
+
+  const demanderCode = async (e) => {
+    e.preventDefault()
+    setSubmitting(true)
+    setGlobalError(null)
+    try {
+      const res = await authApi.telephoneDemander(telephone.trim())
+      setInfoTel(res.data.message)
+      setCodeEnvoye(true)
+    } catch (err) {
+      setGlobalError(err.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const validerCodeTel = async (e) => {
+    e.preventDefault()
+    setSubmitting(true)
+    setGlobalError(null)
+    try {
+      const res = await authApi.telephoneVerifier(telephone.trim(), codeTel.replace(/s+/g, ''))
+      ouvrirSession(res.data)
+      navigate('/', { replace: true })
+    } catch (err) {
+      setGlobalError(err.errors?.code?.[0] || err.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -69,6 +106,27 @@ export default function Login() {
           <Alert onClose={() => setGlobalError(null)}>{globalError}</Alert>
         )}
 
+        {modeTel ? (
+          <form onSubmit={codeEnvoye ? validerCodeTel : demanderCode} noValidate>
+            <Field label="Numéro WhatsApp" htmlFor="telephone" required hint="Le numéro enregistré par votre école.">
+              <Input id="telephone" type="tel" value={telephone} onChange={(e) => setTelephone(e.target.value)} placeholder="+235 66 00 00 00" autoComplete="tel" autoFocus disabled={codeEnvoye} />
+            </Field>
+            {codeEnvoye && (
+              <>
+                <Alert>{infoTel}</Alert>
+                <Field label="Code à six chiffres" htmlFor="code-tel" required>
+                  <Input id="code-tel" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={codeTel} onChange={(e) => setCodeTel(e.target.value)} placeholder="123456" autoFocus />
+                </Field>
+              </>
+            )}
+            <button type="submit" className="btn btn--primary btn--block" disabled={submitting || (codeEnvoye ? codeTel.length !== 6 : !telephone.trim())}>
+              {codeEnvoye ? 'Se connecter' : 'Recevoir le code par WhatsApp'}
+            </button>
+            <p className="login-demo" style={{ marginTop: 12, textAlign: 'center' }}>
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setModeTel(false); setCodeEnvoye(false); setGlobalError(null) }}>Me connecter avec mon e-mail</button>
+            </p>
+          </form>
+        ) : (
         <form onSubmit={handleSubmit} noValidate>
           <Field label="Adresse e-mail" htmlFor="email" required error={errors.email?.[0]}>
             <Input
@@ -117,6 +175,10 @@ export default function Login() {
             <Link to="/mot-de-passe-oublie">Mot de passe oublié ?</Link>
           </p>
 
+          <p className="login-demo" style={{ marginTop: 12, textAlign: 'center' }}>
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setModeTel(true); setGlobalError(null) }}>Me connecter avec mon téléphone (WhatsApp)</button>
+          </p>
+
           <button type="submit" className="btn btn--primary btn--block" disabled={submitting || (etape2fa && !code.trim())}>
             {submitting ? (
               <>
@@ -129,6 +191,7 @@ export default function Login() {
             )}
           </button>
         </form>
+        )}
 
         {/* Identifiants de démonstration : affichés seulement en développement, jamais en production. */}
         {import.meta.env.DEV && (

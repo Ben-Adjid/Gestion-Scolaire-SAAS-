@@ -8,6 +8,8 @@ import Modal from '../components/Modal'
 import { useToast } from '../components/Toast'
 import { Field, Textarea } from '../components/Field'
 import { useAuth } from '../context/AuthContext'
+import { useEtablissement } from '../context/EtablissementContext'
+import { lienWhatsApp } from '../utils/whatsapp'
 import FilResume from '../components/FilResume'
 import { formatMontant } from '../utils/pays'
 
@@ -34,6 +36,7 @@ function moyenneDesNotes(notes) {
 export default function EspaceParent() {
   const toast = useToast()
   const { user } = useAuth()
+  const { etablissement } = useEtablissement()
   const [enfants, setEnfants] = useState([])
   const [enfantId, setEnfantId] = useState(null)
   const [resume, setResume] = useState(null)
@@ -114,7 +117,12 @@ export default function EspaceParent() {
           <span className="parent-salutation">Bonjour {user?.name?.split(' ')[0]}</span>
           <h1>Suivi de la scolarité</h1>
         </div>
-        <Link to="/chatboard" className="btn btn--primary">Écrire à l’administration</Link>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Link to="/chatboard" className="btn btn--primary">Écrire à l’administration</Link>
+          {lienWhatsApp(etablissement.telephone) && (
+            <a className="btn btn--ghost" href={lienWhatsApp(etablissement.telephone, 'Bonjour, je suis parent d’un élève de votre établissement. ')} target="_blank" rel="noopener noreferrer">WhatsApp de l’école</a>
+          )}
+        </div>
       </header>
 
       {erreur && <Alert>{erreur}</Alert>}

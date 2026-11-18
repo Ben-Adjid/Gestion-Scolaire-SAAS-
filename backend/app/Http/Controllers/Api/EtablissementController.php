@@ -44,6 +44,14 @@ class EtablissementController extends Controller
         $data = $request->validated();
         unset($data['logo']);
 
+        // Personnalisation des bulletins : formule VIP et plus. Sans elle, le bulletin reste au modèle standard.
+        $tenantBulletin = $request->user()->etablissement;
+        if ($tenantBulletin && ! in_array('bulletin_personnalise', $tenantBulletin->fonctionnalites(), true)) {
+            foreach (['bulletin_signature_nom', 'bulletin_signature_titre', 'bulletin_mention', 'bulletin_afficher_rang', 'bulletin_couleur'] as $champ) {
+                unset($data[$champ]);
+            }
+        }
+
         $tenant = $request->user()->etablissement;
         if (array_key_exists('couleur_principale', $data) && $tenant && ! in_array('personnalisation', $tenant->fonctionnalites(), true)) {
             return response()->json([

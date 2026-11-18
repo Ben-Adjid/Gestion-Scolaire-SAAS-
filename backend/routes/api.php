@@ -60,6 +60,12 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
+Route::post('/connexion/telephone/demander', [\App\Http\Controllers\Api\ConnexionTelephoneController::class, 'demander'])
+    ->middleware('throttle:5,1')
+    ->withoutMiddleware(['auth:sanctum', 'subscription']);
+Route::post('/connexion/telephone/verifier', [\App\Http\Controllers\Api\ConnexionTelephoneController::class, 'verifier'])
+    ->middleware('throttle:10,1')
+    ->withoutMiddleware(['auth:sanctum', 'subscription']);
 Route::post('/login', [AuthController::class, 'login'])
     ->middleware('throttle:5,1')
     ->withoutMiddleware(['auth:sanctum', 'subscription']);

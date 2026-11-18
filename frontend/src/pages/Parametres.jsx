@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { etablissementApi, paysApi, reglesApi } from '../api/endpoints'
+import { useAuth } from '../context/AuthContext'
+import { aLaFonctionnalite } from '../utils/plans'
 import PageHeader from '../components/PageHeader'
 import Spinner from '../components/Spinner'
 import Alert from '../components/Alert'
@@ -30,6 +32,9 @@ const ETAB_FIELDS = [
 export default function Parametres() {
   const toast = useToast()
   const { etablissement, setEtablissement } = useEtablissement()
+  const { user } = useAuth()
+  // Personnalisation des bulletins : formule VIP et plus.
+  const bulletinPersonnalise = aLaFonctionnalite(user, etablissement, 'bulletin_personnalise')
 
   const [form, setForm] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -207,30 +212,33 @@ export default function Parametres() {
               Utiliser ma position actuelle
             </button>
 
-            <h3 className="section-subtitle">Bulletins</h3>
-            <p className="field-hint" style={{ marginBottom: 12 }}>
-              Ces informations apparaissent sur chaque bulletin imprimé.
-            </p>
-            <div className="form-grid">
-              <Field label="Nom du signataire" htmlFor="bul-sig-nom" hint="Ex : Awa Diop">
-                <Input id="bul-sig-nom" name="bulletin_signature_nom" value={etabForm?.bulletin_signature_nom ?? ''} onChange={handleEtabChange} />
+            {bulletinPersonnalise && (
+              <>
+              <h3 className="section-subtitle">Bulletins</h3>
+              <p className="field-hint" style={{ marginBottom: 12 }}>
+                Ces informations apparaissent sur chaque bulletin imprimé.
+              </p>
+              <div className="form-grid">
+                <Field label="Nom du signataire" htmlFor="bul-sig-nom" hint="Ex : Awa Diop">
+                  <Input id="bul-sig-nom" name="bulletin_signature_nom" value={etabForm?.bulletin_signature_nom ?? ''} onChange={handleEtabChange} />
+                </Field>
+                <Field label="Fonction du signataire" htmlFor="bul-sig-titre" hint="Ex : Le Proviseur">
+                  <Input id="bul-sig-titre" name="bulletin_signature_titre" value={etabForm?.bulletin_signature_titre ?? ''} onChange={handleEtabChange} />
+                </Field>
+              </div>
+              <Field label="Mention de pied de bulletin" htmlFor="bul-mention" hint="Facultatif, 300 caractères maximum">
+                <Input id="bul-mention" name="bulletin_mention" value={etabForm?.bulletin_mention ?? ''} onChange={handleEtabChange} />
               </Field>
-              <Field label="Fonction du signataire" htmlFor="bul-sig-titre" hint="Ex : Le Proviseur">
-                <Input id="bul-sig-titre" name="bulletin_signature_titre" value={etabForm?.bulletin_signature_titre ?? ''} onChange={handleEtabChange} />
-              </Field>
-            </div>
-            <Field label="Mention de pied de bulletin" htmlFor="bul-mention" hint="Facultatif, 300 caractères maximum">
-              <Input id="bul-mention" name="bulletin_mention" value={etabForm?.bulletin_mention ?? ''} onChange={handleEtabChange} />
-            </Field>
-            <label style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '8px 0 16px' }}>
-              <input
-                type="checkbox"
-                checked={etabForm?.bulletin_afficher_rang !== false}
-                onChange={(e) => setEtabForm((prev) => ({ ...prev, bulletin_afficher_rang: e.target.checked }))}
-              />
-              Afficher le rang de l’élève sur le bulletin
-            </label>
-
+              <label style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '8px 0 16px' }}>
+                <input
+                  type="checkbox"
+                  checked={etabForm?.bulletin_afficher_rang !== false}
+                  onChange={(e) => setEtabForm((prev) => ({ ...prev, bulletin_afficher_rang: e.target.checked }))}
+                />
+                Afficher le rang de l’élève sur le bulletin
+              </label>
+              </>
+            )}
             <Field label="Logo de l'établissement" htmlFor="etab-logo" hint="PNG, JPG ou WebP (2 Mo max)">
               <div className="logo-upload-row">
                 <Input

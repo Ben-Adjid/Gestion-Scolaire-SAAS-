@@ -15,6 +15,7 @@ import { useAuth } from '../context/AuthContext'
 import { useEtablissement } from '../context/EtablissementContext'
 import { aLaFonctionnalite } from '../utils/plans'
 import { exempleTelephone } from '../utils/pays'
+import { lienWhatsApp } from '../utils/whatsapp'
 
 const ROLES = Object.entries(ROLE_LABELS)
   .filter(([value]) => value !== 'super_admin')
@@ -251,6 +252,9 @@ export default function Utilisateurs() {
                           : item.affectation || '—'}
                       </td>
                       <td className="cell-actions">
+                        {item.telephone && lienWhatsApp(item.telephone) && (
+                          <a className="btn btn--ghost btn--sm" href={lienWhatsApp(item.telephone, `Bonjour ${item.name}, `)} target="_blank" rel="noopener noreferrer">WhatsApp</a>
+                        )}
                         {gereCompte(item) ? (
                           <>
                             <button type="button" className="btn btn--ghost btn--sm" onClick={() => openEdit(item)}>Modifier</button>

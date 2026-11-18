@@ -40,6 +40,9 @@ return [
     'whatsapp' => [
         'token' => env('WHATSAPP_TOKEN'),
         'phone_id' => env('WHATSAPP_PHONE_ID'),
+        // Modèle d'authentification approuvé par Meta, utilisé pour le code de connexion par téléphone.
+        'otp_template' => env('WHATSAPP_OTP_TEMPLATE'),
+        'otp_langue' => env('WHATSAPP_OTP_LANGUE', 'fr'),
     ],
 
     'openai' => [

@@ -48,6 +48,14 @@ export function AuthProvider({ children }) {
     return res.data.user
   }
 
+  // Ouvre la session à partir d'un jeton déjà émis (connexion par téléphone).
+  const ouvrirSession = ({ token, user: utilisateur }) => {
+    localStorage.setItem('token', token)
+    localStorage.setItem('user', JSON.stringify(utilisateur))
+    setUser(utilisateur)
+    return utilisateur
+  }
+
   const logout = async () => {
     try {
       await authApi.logout()
@@ -62,7 +70,7 @@ export function AuthProvider({ children }) {
   }
 
   const value = useMemo(
-    () => ({ user, loading, login, logout }),
+    () => ({ user, loading, login, logout, ouvrirSession }),
     [user, loading]
   )
 

@@ -4,6 +4,8 @@ export const authApi = {
   login: (credentials) => client.post('/login', credentials),
   me: () => client.get('/me'),
   logout: () => client.post('/logout'),
+  telephoneDemander: (telephone) => client.post('/connexion/telephone/demander', { telephone }),
+  telephoneVerifier: (telephone, code) => client.post('/connexion/telephone/verifier', { telephone, code }),
 }
 
 export const motDePasseApi = {
