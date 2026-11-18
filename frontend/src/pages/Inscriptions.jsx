@@ -634,6 +634,21 @@ export default function Inscriptions() {
 
           {etape === 2 && (
             <>
+          {!editing && mode === 'ancien' && lookupResult && (
+            <div className="lookup-result" style={{ marginBottom: 16 }}>
+              <div className="lookup-result-head">
+                <div>
+                  <strong>{lookupResult.etudiant.prenom} {lookupResult.etudiant.nom}</strong>
+                  <p className="muted">Dernière classe : {lookupResult.etudiant.classe?.nom || 'Sans classe'}</p>
+                </div>
+              </div>
+              <div className="lookup-result-stats">
+                <div><span className="lookup-label">Moyenne annuelle</span><span className="lookup-value">{lookupResult.moyenne_annuelle != null ? `${lookupResult.moyenne_annuelle}/20` : 'Pas de notes'}</span></div>
+                <div><span className="lookup-label">Décision</span><span className="badge">{lookupResult.decision.label}</span></div>
+              </div>
+              <p className="field-hint">Une montée de niveau n’est possible qu’avec une moyenne admise.</p>
+            </div>
+          )}
           {editing ? (
             <Field label="Élève" htmlFor="etudiant_id" required error={formErrors.etudiant_id?.[0]}>
               <Select

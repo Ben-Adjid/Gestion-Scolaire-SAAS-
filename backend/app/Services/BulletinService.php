@@ -21,6 +21,40 @@ class BulletinService
         ];
     }
 
+    /** Ordre des niveaux, du plus bas au plus haut : sert à savoir si une réinscription est une montée. */
+    public const ORDRE_NIVEAUX = ['6ème', '5ème', '4ème', '3ème', 'Seconde', 'Première', 'Terminale'];
+
+    public function rangNiveau(?string $niveau): ?int
+    {
+        $indice = array_search(trim((string) $niveau), self::ORDRE_NIVEAUX, true);
+
+        return $indice === false ? null : $indice;
+    }
+
+    /**
+     * Passage en classe supérieure : l'élève doit être admis (moyenne annuelle au seuil d'admission).
+     * Renvoie null si le passage est autorisé, sinon le motif à afficher.
+     */
+    public function motifRefusPassage(Etudiant $etudiant, ?string $niveauCible): ?string
+    {
+        $rangActuel = $this->rangNiveau($etudiant->classe?->niveau);
+        $rangCible = $this->rangNiveau($niveauCible);
+        if ($rangActuel === null || $rangCible === null || $rangCible <= $rangActuel) {
+            return null;
+        }
+
+        $seuil = $this->thresholds()['seuil_admission'];
+        $moyenne = $this->moyenneAnnuelle($etudiant);
+        if ($moyenne === null) {
+            return 'Impossible d’inscrire cet élève en classe supérieure : aucune note annuelle enregistrée.';
+        }
+        if ($moyenne < $seuil) {
+            return "Impossible d’inscrire cet élève en classe supérieure : sa moyenne annuelle est de {$moyenne}/20, le seuil d’admission est de {$seuil}/20.";
+        }
+
+        return null;
+    }
+
     public function decision(?float $moyenne): array
     {
         if ($moyenne === null) {
@@ -124,7 +158,8 @@ class BulletinService
         $mention = $notes->isEmpty() ? null : $this->mention($moyenneGenerale);
 
         return [
-            'etudiant' => $etudiant,
+            'etudiant' => $etudiant->loadMissing('classe:id,nom,niveau'),
+            'classe' => $etudiant->classe?->only(['id', 'nom', 'niveau']),
             'trimestre' => $trimestre,
             'matieres' => $matieres,
             'effectif' => Etudiant::where('classe_id', $etudiant->classe_id)->count(),

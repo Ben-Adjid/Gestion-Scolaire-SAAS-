@@ -46,6 +46,18 @@ class InscriptionController extends Controller
     {
         $data = $request->validated();
 
+        // Réinscription dans un niveau supérieur : réservée aux élèves admis.
+        if (($data['type'] ?? null) === 'ancien' && ! empty($data['etudiant_id'])) {
+            $cible = Classe::find($data['classe_id']);
+            $motif = app(\App\Services\BulletinService::class)->motifRefusPassage(
+                Etudiant::with('classe')->findOrFail($data['etudiant_id']),
+                $cible?->niveau,
+            );
+            if ($motif) {
+                return response()->json(['message' => $motif, 'errors' => ['classe_id' => [$motif]]], 422);
+            }
+        }
+
         $compteParent = null;
         $inscription = DB::transaction(function () use ($data, $request, &$compteParent) {
             if (empty($data['etudiant_id'])) {

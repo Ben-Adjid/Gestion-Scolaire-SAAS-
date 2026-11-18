@@ -228,15 +228,6 @@ export const paysApi = {
   liste: () => client.get('/pays'),
 }
 
-// Paiement en ligne des frais scolaires.
-export const paiementEnLigneApi = {
-  payer: (fraisId, montant) => client.post(`/parent/frais/${fraisId}/payer`, { montant }),
-  suivre: (reference) => client.get(`/parent/paiements-en-ligne/${reference}`),
-  simuler: (reference, issue) => client.post(`/parent/paiements-en-ligne/${reference}/simuler`, { issue }),
-  configuration: () => client.get('/etablissement/paiement-en-ligne'),
-  configurer: (data) => client.put('/etablissement/paiement-en-ligne', data),
-}
-
 // Rendez-vous parents-professeurs.
 export const rendezVousApi = {
   mesRendezVous: () => client.get('/parent/rendez-vous'),

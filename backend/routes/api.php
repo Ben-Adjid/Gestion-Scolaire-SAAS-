@@ -64,11 +64,6 @@ Route::post('/login', [AuthController::class, 'login'])
     ->middleware('throttle:5,1')
     ->withoutMiddleware(['auth:sanctum', 'subscription']);
 
-// Notification du prestataire de paiement en ligne (sans session : le statut est revérifié auprès de son API).
-Route::post('/paiement-en-ligne/notification/{prestataire}', [\App\Http\Controllers\Api\PaiementEnLigneController::class, 'notification'])
-    ->middleware('throttle:60,1')
-    ->withoutMiddleware(['auth:sanctum', 'subscription', 'enforce_tenant', 'reserve_parents']);
-
 // Référentiel public des pays pris en charge (aucune donnée personnelle).
 Route::get('/pays', fn () => response()->json(
     collect(config('pays.liste'))->map(fn ($p, $code) => ['code' => $code] + $p)->values()
@@ -261,14 +256,6 @@ Route::middleware(['auth:sanctum', 'subscription', 'enforce_tenant', 'reserve_pa
         Route::post('/sorties/{autorisation}/annuler', [\App\Http\Controllers\Api\AutorisationSortieController::class, 'annuler'])->whereNumber('autorisation');
         Route::get('/sorties/{autorisation}/document', [\App\Http\Controllers\Api\AutorisationSortieController::class, 'document'])->whereNumber('autorisation');
     });
-    // Paiement en ligne des frais scolaires.
-    Route::prefix('parent')->middleware('plan:paiement_en_ligne')->group(function () {
-        Route::post('/frais/{frais}/payer', [\App\Http\Controllers\Api\PaiementEnLigneController::class, 'payer'])->middleware('throttle:10,1');
-        Route::get('/paiements-en-ligne/{reference}', [\App\Http\Controllers\Api\PaiementEnLigneController::class, 'suivre'])->middleware('throttle:30,1');
-        Route::post('/paiements-en-ligne/{reference}/simuler', [\App\Http\Controllers\Api\PaiementEnLigneController::class, 'simuler']);
-    });
-    Route::get('/etablissement/paiement-en-ligne', [\App\Http\Controllers\Api\PaiementEnLigneController::class, 'configuration'])->middleware('plan:paiement_en_ligne');
-    Route::put('/etablissement/paiement-en-ligne', [\App\Http\Controllers\Api\PaiementEnLigneController::class, 'configurer'])->middleware('plan:paiement_en_ligne');
 
     // Rendez-vous parents-professeurs.
     Route::prefix('parent')->middleware('plan:espace_parent')->group(function () {

@@ -19,12 +19,12 @@ class FraisScolaireController extends Controller
     {
         $this->middleware('auth:sanctum');
         $this->middleware('role:admin,proviseur,gestionnaire,agent_comptable')->only(['index', 'stats', 'show', 'paiements', 'export', 'recu']);
-        $this->middleware('role:admin,gestionnaire,agent_comptable')->only(['store', 'update', 'bulkInit', 'addPaiement']);
+        $this->middleware('role:admin,gestionnaire,agent_comptable')->only(['store', 'update', 'bulkInit', 'addPaiement', 'destroy']);
     }
 
     public function index(Request $request): JsonResponse
     {
-        $query = FraisScolaire::query()->with('etudiant:id,nom,prenom,matricule');
+        $query = FraisScolaire::query()->with(['etudiant:id,nom,prenom,matricule,classe_id', 'etudiant.classe:id,nom']);
 
         if ($request->etudiant_id) {
             $query->where('etudiant_id', $request->etudiant_id);
@@ -97,6 +97,14 @@ class FraisScolaireController extends Controller
             'date_echeance' => (string) $f->date_echeance,
             'statut' => $f->statut,
         ];
+        // Le montant total ne peut pas passer sous ce qui est déjà encaissé.
+        if (isset($validated['montant_total']) && (float) $validated['montant_total'] < $frais->montant_paye) {
+            return response()->json([
+                'message' => 'Le montant total ne peut pas être inférieur au montant déjà encaissé ('.number_format($frais->montant_paye, 0, ',', ' ').').',
+                'errors' => ['montant_total' => ['Le montant total ne peut pas être inférieur au montant déjà encaissé.']],
+            ], 422);
+        }
+
         $avant = $valeurs($frais);
         $frais->update($this->donneesFrais($validated, $frais));
 
@@ -143,16 +151,36 @@ class FraisScolaireController extends Controller
         return response()->json($frais->paiements()->orderByDesc('date_paiement')->get());
     }
 
+    /** Suppression : impossible dès qu'un paiement a été encaissé (on garde la trace comptable). */
+    public function destroy(Request $request, FraisScolaire $frais): JsonResponse
+    {
+        if ($frais->paiements()->exists()) {
+            return response()->json([
+                'message' => 'Ces frais ont déjà des paiements encaissés : ils ne peuvent pas être supprimés. Corrigez le montant si besoin.',
+            ], 422);
+        }
+
+        $libelle = $frais->libelle;
+        $frais->delete();
+        AuditLogger::log($request->user(), 'suppression', 'FraisScolaire', $frais->id, "Suppression des frais « {$libelle} »");
+
+        return response()->json(['message' => 'Frais supprimés.']);
+    }
+
     public function addPaiement(Request $request, FraisScolaire $frais): JsonResponse
     {
         $validated = $request->validate([
             'montant' => 'required|numeric|min:0.01',
             'date_paiement' => 'required|date',
-            'mode' => 'required|string|max:50',
+            // Paiements au guichet uniquement : espèces ou chèque.
+            'mode' => 'required|in:especes,cheque',
             'reference' => 'nullable|string|max:100',
-        ]);
+        ], ['mode.in' => 'Le mode de paiement doit être espèces ou chèque.']);
 
         $frais->loadMissing('paiements');
+        if ($frais->reste <= 0) {
+            return response()->json(['message' => 'Ces frais sont déjà soldés : aucun paiement supplémentaire n’est possible.'], 422);
+        }
         if ($validated['montant'] > $frais->reste) {
             return response()->json([
                 'message' => "Le montant dépasse le reste à payer ({$frais->reste} ".($request->user()->etablissement?->monnaie() ?? 'FCFA').").",

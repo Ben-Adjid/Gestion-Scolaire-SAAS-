@@ -113,13 +113,13 @@ class EtudiantController extends Controller
         $matricule = $request->query('matricule');
 
         if (!$matricule) {
-            return response()->json(['message' => 'Matricule required'], 400);
+            return response()->json(['message' => 'Indiquez le matricule de l’élève à rechercher.'], 400);
         }
 
         $etudiant = Etudiant::where('matricule', $matricule)->first();
 
         if (!$etudiant) {
-            return response()->json(['message' => 'Étudiant not found'], 404);
+            return response()->json(['message' => 'Aucun élève ne porte ce matricule. Vérifiez la saisie (ex. LIC-2026-0001).'], 404);
         }
 
         $this->assertPeutVoir($request->user(), $etudiant);

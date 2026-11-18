@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { classesApi, etudiantsApi, exportApi, fraisScolairesApi, telecharger } from '../api/endpoints'
+import { downloadRecuPdf } from '../utils/pdf'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -16,9 +17,7 @@ import { formatMontant, monnaie } from '../utils/pays'
 
 const MODES = [
   { value: 'especes', label: 'Espèces' },
-  { value: 'virement', label: 'Virement' },
   { value: 'cheque', label: 'Chèque' },
-  { value: 'mobile_money', label: 'Mobile Money' },
 ]
 
 function money(v) {
@@ -92,12 +91,19 @@ export default function FraisScolaires() {
     }
   }
 
-  const telechargerRecu = async (paiement) => {
+  // Reçu au format PDF, généré aux couleurs de l'école (plus de fichier HTML).
+  const telechargerRecu = (paiement) => {
+    if (!recusDe) return
     try {
-      const res = await exportApi.recu(paiement.id)
-      telecharger(res.data, `recu-${paiement.id}.html`)
+      downloadRecuPdf({
+        paiement,
+        frais: recusDe,
+        eleve: { prenom: recusDe.etudiant?.prenom, nom: recusDe.etudiant?.nom, matricule: recusDe.etudiant?.matricule, classe: recusDe.etudiant?.classe?.nom },
+        etablissement: { ...etablissement, monnaie: etablissement?.pays_info?.monnaie },
+        filename: `recu-${String(paiement.id).padStart(6, '0')}.pdf`,
+      })
     } catch (err) {
-      toast.error(err.message)
+      toast.error(err.message || 'Reçu impossible à générer.')
     }
   }
 
@@ -382,11 +388,23 @@ export default function FraisScolaires() {
                                   Relancer
                                 </FeatureButton>
                               )}
-                              <button type="button" className="btn btn--ghost btn--sm" onClick={() => openPaiement(item)}>
-                                Paiement
-                              </button>
+                              {Number(item.reste) > 0 ? (
+                                <button type="button" className="btn btn--ghost btn--sm" onClick={() => openPaiement(item)}>
+                                  Encaisser
+                                </button>
+                              ) : (
+                                <span className="badge badge--success">Soldé</span>
+                              )}
                               <button type="button" className="btn btn--ghost btn--sm" onClick={() => openEdit(item)}>Modifier</button>
-                              <button type="button" className="btn btn--ghost btn--sm" onClick={() => setDeleting(item)}>Supprimer</button>
+                              <button
+                                type="button"
+                                className="btn btn--ghost btn--sm"
+                                disabled={Number(item.montant_paye) > 0}
+                                title={Number(item.montant_paye) > 0 ? 'Des paiements sont encaissés : la suppression n’est plus possible.' : 'Supprimer ces frais'}
+                                onClick={() => setDeleting(item)}
+                              >
+                                Supprimer
+                              </button>
                             </>
                           )}
                         </td>

@@ -54,11 +54,8 @@ class Etablissement extends Model
         'longitude'      => 'float',
         'rayon_pointage' => 'integer',
         'abonnement_fin' => 'date',
-        'paiement_identifiants' => 'encrypted:array',
     ];
 
-    // Identifiants du prestataire de paiement : jamais renvoyés par l'API.
-    protected $hidden = ['paiement_identifiants'];
 
     // ── Relations ──────────────────────────────────────
 

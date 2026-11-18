@@ -47,6 +47,31 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
+        // Messages clairs en français : jamais la page d'erreur technique de Laravel dans l'application.
+        $exceptions->render(function (\Illuminate\Database\Eloquent\ModelNotFoundException|\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json(['message' => 'Élément introuvable. Il a peut-être été supprimé : actualisez la page.'], 404);
+            }
+        });
+
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json(['message' => 'Cette action n’est pas disponible. Actualisez la page et réessayez.'], 405);
+            }
+        });
+
+        $exceptions->render(function (\Throwable $e, Request $request) {
+            if (($request->is('api/*') || $request->expectsJson())
+                && ! $e instanceof \Illuminate\Validation\ValidationException
+                && ! $e instanceof \Symfony\Component\HttpKernel\Exception\HttpException
+                && ! $e instanceof AuthenticationException
+                && ! $e instanceof AuthorizationException) {
+                return response()->json([
+                    'message' => 'Une erreur inattendue est survenue. Réessayez ; si le problème continue, prévenez l’administrateur.',
+                ], 500);
+            }
+        });
+
         $exceptions->render(function (AuthorizationException|AccessDeniedHttpException $e, Request $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
                 return response()->json([
