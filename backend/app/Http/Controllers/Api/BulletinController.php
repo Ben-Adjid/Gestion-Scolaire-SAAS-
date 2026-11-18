@@ -53,6 +53,7 @@ class BulletinController extends Controller
                 'message' => "Les bulletins ne sont pas accessibles aux enseignants.",
             ], 403);
         }
+        abort_unless(TeacherScope::canAccessClasse($request->user(), (int) $classe->id), 403, 'Cette classe est hors de votre périmètre.');
 
         $trimestre = $request->boolean('annuel')
             ? null

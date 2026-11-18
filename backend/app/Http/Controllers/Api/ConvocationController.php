@@ -17,8 +17,10 @@ class ConvocationController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $perimetre = \App\Services\TeacherScope::classeIds($request->user());
         $convocations = Convocation::query()
             ->with(['etudiant:id,nom,prenom,matricule,classe_id', 'etudiant.classe:id,nom'])
+            ->when($perimetre !== null, fn ($q) => $q->whereHas('etudiant', fn ($e) => $e->whereIn('classe_id', $perimetre)))
             ->when($request->query('etudiant_id'), fn ($q, $v) => $q->where('etudiant_id', $v))
             ->when($request->query('classe_id'), fn ($q, $v) => $q->whereHas('etudiant', fn ($q2) => $q2->where('classe_id', $v)))
             ->orderByDesc('date')

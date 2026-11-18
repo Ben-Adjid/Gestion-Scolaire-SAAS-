@@ -60,7 +60,9 @@ class AppelController extends Controller
 
     public function enAttente(Request $request): JsonResponse
     {
+        $perimetre = TeacherScope::classeIds($request->user());
         $appels = Appel::where('statut', 'valide')
+            ->when($perimetre !== null, fn ($q) => $q->whereIn('classe_id', $perimetre))
             ->with(['classe:id,nom,niveau', 'user:id,name'])
             ->orderByDesc('date')
             ->get()

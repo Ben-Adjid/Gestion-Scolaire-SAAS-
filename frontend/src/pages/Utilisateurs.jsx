@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { enseignantsApi, matieresApi, usersApi } from '../api/endpoints'
+import { classesApi, enseignantsApi, matieresApi, usersApi } from '../api/endpoints'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -27,7 +27,7 @@ const EMPTY_FORM = {
 
 // Direction et vie scolaire : on précise où la personne intervient.
 const ROLES_AFFECTES = ['proviseur', 'censeur', 'cpe', 'surveillant']
-const AFFECTATIONS = ['Général', 'Collège', 'Lycée', 'Bâtiment A', 'Bâtiment B', 'Bâtiment C']
+const AFFECTATIONS_DE_BASE = ['Général', 'Collège', 'Lycée']
 
 function roleLabel(value) {
   return ROLES.find((r) => r.value === value)?.label || value
@@ -61,6 +61,8 @@ export default function Utilisateurs() {
   const [page, setPage] = useState(1)
   const [enseignants, setEnseignants] = useState([])
   const [matieres, setMatieres] = useState([])
+  const [batiments, setBatiments] = useState([])
+  const AFFECTATIONS = [...AFFECTATIONS_DE_BASE, ...batiments]
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -74,6 +76,9 @@ export default function Utilisateurs() {
   useEffect(() => {
     enseignantsApi.list({ per_page: 1000 }).then((res) => setEnseignants(res.data.data)).catch(() => {})
     matieresApi.list({ per_page: 1000 }).then((res) => setMatieres(res.data.data ?? res.data)).catch(() => {})
+    classesApi.list({ per_page: 1000 })
+      .then((res) => setBatiments([...new Set((res.data.data || []).map((c) => c.batiment).filter(Boolean))].sort()))
+      .catch(() => {})
   }, [])
 
   const fetchData = useCallback(async () => {
@@ -370,7 +375,9 @@ export default function Utilisateurs() {
                 label={form.role === 'censeur' ? 'Censeur de quel périmètre ?' : 'Périmètre'}
                 htmlFor="affectation"
                 error={formErrors.affectation?.[0]}
-                hint="« Général » : tout l’établissement. Sinon un cycle ou un bâtiment ; un autre libellé est possible."
+                hint={batiments.length
+                  ? '« Général » : tout l’établissement. Sinon, la personne ne voit que les classes du cycle ou du bâtiment choisi.'
+                  : '« Général » : tout l’établissement. Pour un périmètre par bâtiment, renseignez d’abord le bâtiment des classes (menu Classes).'}
               >
                 <Input id="affectation" name="affectation" value={form.affectation} onChange={handleChange} placeholder="Général" />
               </Field>

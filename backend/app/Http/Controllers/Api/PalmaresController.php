@@ -34,7 +34,9 @@ class PalmaresController extends Controller
         $nb = $regles->nb_tableau_honneur ?? 5;
         $seuilMinimum = $regles->seuil_bien ?? 12;
 
+        $perimetre = TeacherScope::classeIds($request->user());
         $classes = Classe::query()
+            ->when($perimetre !== null, fn ($q) => $q->whereIn('id', $perimetre))
             ->when($classeId, fn ($q) => $q->where('id', $classeId))
             ->when(! $classeId && ($cycle === 'college' || $cycle === 'lycee'), function ($q) use ($cycle) {
                 $niveaux = $cycle === 'college'

@@ -11,13 +11,26 @@ class ClasseRequest extends FormRequest
         return auth()->check() && auth()->user()->can('create', \App\Models\Classe::class);
     }
 
+    /** Le cycle se déduit du niveau quand le formulaire ne l'envoie pas. */
+    protected function prepareForValidation(): void
+    {
+        if (blank($this->input('cycle')) && filled($this->input('niveau'))) {
+            $this->merge(['cycle' => \App\Models\Classe::cyclePourNiveau($this->input('niveau'))]);
+        }
+        if ($this->has('batiment')) {
+            $this->merge(['batiment' => filled($this->input('batiment')) ? trim((string) $this->input('batiment')) : null]);
+        }
+    }
+
     public function rules(): array
     {
         return [
             'nom' => 'required|string|max:100',
-            'niveau' => 'required|string',
-            'effectif_max' => 'required|integer|min:10|max:40',
-            'cycle' => 'required|string',
+            'niveau' => 'required|string|max:50',
+            'description' => 'nullable|string|max:500',
+            'effectif_max' => 'nullable|integer|min:5|max:150',
+            'cycle' => 'required|in:college,lycee',
+            'batiment' => 'nullable|string|max:50',
         ];
     }
 
@@ -26,7 +39,6 @@ class ClasseRequest extends FormRequest
         return [
             'nom.required' => 'Le nom de la classe est requis.',
             'niveau.required' => 'Le niveau est requis.',
-            'effectif_max.required' => 'L\'effectif maximum est requis.',
         ];
     }
 }

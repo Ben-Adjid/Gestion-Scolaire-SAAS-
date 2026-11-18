@@ -27,6 +27,8 @@ class EmploiDuTempsController extends Controller
             ->when(TeacherScope::isTeacherRole($user), fn ($q) => $q->where('enseignant_id', $user->enseignant_id))
             ->when(! TeacherScope::isTeacherRole($user) && $request->filled('classe_id'), fn ($q) => $q->where('classe_id', $request->query('classe_id')))
             ->when(! TeacherScope::isTeacherRole($user) && $request->filled('enseignant_id'), fn ($q) => $q->where('enseignant_id', $request->query('enseignant_id')))
+            // Périmètre (cycle ou bâtiment) : seulement les classes affectées.
+            ->when(TeacherScope::aUnPerimetre($user), fn ($q) => $q->whereIn('classe_id', TeacherScope::perimetreClasseIds($user)))
             ->orderBy('jour')
             ->orderBy('creneau_id')
             ->get();

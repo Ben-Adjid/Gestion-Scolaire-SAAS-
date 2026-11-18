@@ -17,7 +17,9 @@ class JustificationController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $perimetre = \App\Services\TeacherScope::classeIds($request->user());
         $justifications = AbsenceJustification::with(['absence.etudiant:id,nom,prenom,matricule', 'demandeur:id,name'])
+            ->when($perimetre !== null, fn ($q) => $q->whereHas('absence.etudiant', fn ($e) => $e->whereIn('classe_id', $perimetre)))
             ->when($request->query('statut'), fn ($q, $v) => $q->where('statut', $v), fn ($q) => $q->where('statut', 'en_attente'))
             ->orderBy('created_at')
             ->get();

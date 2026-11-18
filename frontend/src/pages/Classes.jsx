@@ -8,9 +8,14 @@ import EmptyState from '../components/EmptyState'
 import Pagination from '../components/Pagination'
 import Alert from '../components/Alert'
 import { useToast } from '../components/Toast'
-import { Field, Input, Textarea } from '../components/Field'
+import { Field, Input, Textarea, Select } from '../components/Field'
 
-const EMPTY_FORM = { nom: '', niveau: '', description: '' }
+const EMPTY_FORM = { nom: '', niveau: '', cycle: '', batiment: '', description: '' }
+
+const NIVEAUX = ['6ème', '5ème', '4ème', '3ème', 'Seconde', 'Première', 'Terminale']
+const NIVEAUX_COLLEGE = ['6ème', '5ème', '4ème', '3ème']
+const cyclePour = (niveau) => (NIVEAUX_COLLEGE.includes(niveau) ? 'college' : 'lycee')
+const CYCLES = { college: 'Collège', lycee: 'Lycée' }
 
 export default function Classes() {
   const toast = useToast()
@@ -62,6 +67,8 @@ export default function Classes() {
     setForm({
       nom: item.nom,
       niveau: item.niveau,
+      cycle: item.cycle || cyclePour(item.niveau),
+      batiment: item.batiment || '',
       description: item.description || '',
     })
     setFormErrors({})
@@ -70,7 +77,8 @@ export default function Classes() {
 
   const handleChange = (e) => {
     const { name, value } = e.target
-    setForm((prev) => ({ ...prev, [name]: value }))
+    // Le cycle suit le niveau (modifiable ensuite) : il sert au périmètre des censeurs et surveillants.
+    setForm((prev) => ({ ...prev, [name]: value, ...(name === 'niveau' ? { cycle: cyclePour(value) } : {}) }))
     setFormErrors((prev) => ({ ...prev, [name]: undefined }))
   }
 
@@ -153,6 +161,7 @@ export default function Classes() {
                     <th>Nom</th>
                     <th>Niveau</th>
                     <th>Élèves</th>
+                    <th>Cycle · bâtiment</th>
                     <th>Description</th>
                     <th className="th-actions">Actions</th>
                   </tr>
@@ -170,6 +179,7 @@ export default function Classes() {
                         <span className="badge">{item.niveau}</span>
                       </td>
                       <td>{item.etudiants_count}</td>
+                      <td className="cell-muted">{[CYCLES[item.cycle], item.batiment].filter(Boolean).join(' · ') || '—'}</td>
                       <td className="cell-muted">{item.description || '—'}</td>
                       <td className="cell-actions">
                         <button
@@ -237,8 +247,22 @@ export default function Classes() {
                 value={form.niveau}
                 onChange={handleChange}
                 placeholder="Ex : Terminale"
+                list="niveaux-classes"
                 error={formErrors.niveau?.[0]}
               />
+              <datalist id="niveaux-classes">
+                {NIVEAUX.map((n) => <option key={n} value={n} />)}
+              </datalist>
+            </Field>
+          </div>
+          <div className="form-grid">
+            <Field label="Cycle" htmlFor="cycle" error={formErrors.cycle?.[0]} hint="Déduit du niveau.">
+              <Select id="cycle" name="cycle" value={form.cycle || cyclePour(form.niveau)} onChange={handleChange}>
+                {Object.entries(CYCLES).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </Select>
+            </Field>
+            <Field label="Bâtiment" htmlFor="batiment" error={formErrors.batiment?.[0]} hint="Optionnel. Sert au périmètre d’un surveillant ou d’un censeur.">
+              <Input id="batiment" name="batiment" value={form.batiment} onChange={handleChange} placeholder="Ex : Bâtiment A" />
             </Field>
           </div>
           <Field

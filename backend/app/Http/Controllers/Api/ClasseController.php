@@ -41,7 +41,7 @@ class ClasseController extends Controller
 
     public function store(ClasseRequest $request): JsonResponse
     {
-        $classe = Classe::create($request->validated());
+        $classe = Classe::create(array_filter($request->validated(), fn ($v, $k) => $k !== 'effectif_max' || $v !== null, ARRAY_FILTER_USE_BOTH));
 
         AuditLogger::log($request->user(), 'création', 'classes', $classe->id,
             "Création de la classe {$classe->nom}");
@@ -59,7 +59,7 @@ class ClasseController extends Controller
 
     public function update(ClasseRequest $request, Classe $classe): JsonResponse
     {
-        $classe->update($request->validated());
+        $classe->update(array_filter($request->validated(), fn ($v, $k) => $k !== 'effectif_max' || $v !== null, ARRAY_FILTER_USE_BOTH));
 
         AuditLogger::log($request->user(), 'modification', 'classes', $classe->id,
             "Modification de la classe {$classe->nom}");

@@ -34,6 +34,8 @@ class DashboardController extends Controller
         if ($matiereIds !== null) {
             $notes->whereIn('matiere_id', $matiereIds)
                 ->whereHas('etudiant', fn ($q) => $q->whereIn('classe_id', $classeIds));
+        } elseif ($classeIds !== null) {
+            $notes->whereHas('etudiant', fn ($q) => $q->whereIn('classe_id', $classeIds));
         }
 
         $classes = Classe::where('etablissement_id', $etablissementId)
@@ -65,6 +67,7 @@ class DashboardController extends Controller
         $topEleves = [];
         if ($voitEleves && ! TeacherScope::isTeacherRole($user)) {
             $topEleves = Etudiant::where('etablissement_id', $etablissementId)
+                ->when($classeIds !== null, fn ($q) => $q->whereIn('classe_id', $classeIds))
                 ->whereHas('notes')
                 ->withAvg('notes', 'valeur')
                 ->with('classe:id,nom')

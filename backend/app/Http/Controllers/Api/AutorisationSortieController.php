@@ -149,6 +149,8 @@ class AutorisationSortieController extends Controller
 
         $liste = AutorisationSortie::query()
             ->with(['etudiant:id,nom,prenom,matricule,classe_id', 'etudiant.classe:id,nom', 'parent:id,name,telephone', 'traitePar:id,name'])
+            ->when(\App\Services\TeacherScope::classeIds($request->user()), fn ($q, $ids) => $q->whereHas('etudiant', fn ($e) => $e->whereIn('classe_id', $ids)))
+            ->when(\App\Services\TeacherScope::aUnPerimetre($request->user()) && \App\Services\TeacherScope::classeIds($request->user()) === [], fn ($q) => $q->whereRaw('1 = 0'))
             ->when($request->query('date'), fn ($q, $d) => $q->whereDate('date_sortie', $d))
             ->when($request->query('statut'), fn ($q, $s) => $q->where('statut', $s))
             ->orderBy('date_sortie')->orderBy('heure_sortie')
@@ -170,6 +172,7 @@ class AutorisationSortieController extends Controller
             'commentaire' => ['nullable', 'string', 'max:255', 'required_if:decision,refusee'],
         ], ['commentaire.required_if' => 'Indiquez au parent la raison du refus.']);
 
+        $this->assertPerimetre($request, $autorisation);
         abort_unless($autorisation->statut === 'en_attente', 422, 'Cette autorisation a déjà été traitée.');
 
         $autorisation->update([
@@ -187,6 +190,7 @@ class AutorisationSortieController extends Controller
 
     public function marquerSortie(Request $request, AutorisationSortie $autorisation, NotificationParentsService $notifications): JsonResponse
     {
+        $this->assertPerimetre($request, $autorisation);
         abort_unless($autorisation->statut === 'validee', 422, 'Seule une autorisation validée permet la sortie.');
         abort_unless($autorisation->empreinteValide(), 422, 'La signature de cette autorisation ne correspond plus à son contenu.');
 
@@ -231,6 +235,12 @@ class AutorisationSortieController extends Controller
         ])->render();
 
         return response($html, 200, ['Content-Type' => 'text/html; charset=UTF-8']);
+    }
+
+    private function assertPerimetre(Request $request, AutorisationSortie $autorisation): void
+    {
+        $classe = (int) Etudiant::whereKey($autorisation->etudiant_id)->value('classe_id');
+        abort_unless(\App\Services\TeacherScope::canAccessClasse($request->user(), $classe), 403, 'Cet élève est hors de votre périmètre.');
     }
 
     private function assertEnfant(User $parent, Etudiant $etudiant): void

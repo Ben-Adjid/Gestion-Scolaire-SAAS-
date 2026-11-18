@@ -16,8 +16,25 @@ class Classe extends Model
     protected $table = 'classes';
 
     protected $fillable = [
-        'nom', 'niveau', 'description', 'effectif_max', 'cycle', 'etablissement_id',
+        'nom', 'niveau', 'description', 'effectif_max', 'cycle', 'batiment', 'etablissement_id',
     ];
+
+    public const NIVEAUX_COLLEGE = ['6ème', '5ème', '4ème', '3ème'];
+
+    /** Cycle déduit du niveau : collège (6e à 3e) ou lycée. */
+    public static function cyclePourNiveau(?string $niveau): string
+    {
+        return in_array($niveau, self::NIVEAUX_COLLEGE, true) ? 'college' : 'lycee';
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(function (Classe $classe) {
+            if (blank($classe->cycle)) {
+                $classe->cycle = self::cyclePourNiveau($classe->niveau);
+            }
+        });
+    }
 
     public function etudiants(): HasMany
     {
