@@ -129,10 +129,13 @@ Route::middleware(['auth:sanctum', 'subscription', 'enforce_tenant', 'reserve_pa
     Route::post('/convocations', [ConvocationController::class, 'store']);
     Route::delete('/convocations/{convocation}', [ConvocationController::class, 'destroy']);
 
-    Route::get('/pointages/stats', [PointageController::class, 'stats']);
-    Route::get('/pointages/aujourdhui', [PointageController::class, 'aujourdhui']);
-    Route::get('/pointages', [PointageController::class, 'index']);
-    Route::post('/pointages', [PointageController::class, 'store']);
+    // Pointage des enseignants : formule VIP et plus.
+    Route::middleware('plan:pointage_enseignants')->group(function () {
+        Route::get('/pointages/stats', [PointageController::class, 'stats']);
+        Route::get('/pointages/aujourdhui', [PointageController::class, 'aujourdhui']);
+        Route::get('/pointages', [PointageController::class, 'index']);
+        Route::post('/pointages', [PointageController::class, 'store']);
+    });
 
     Route::get('/messages/stats', [MessageController::class, 'stats']);
     Route::get('/messages', [MessageController::class, 'index']);

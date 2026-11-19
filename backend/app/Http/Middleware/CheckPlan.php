@@ -17,8 +17,16 @@ class CheckPlan
 
         $etablissement = $user->etablissement;
         if (! $etablissement || ! in_array($fonctionnalite, $etablissement->fonctionnalites(), true)) {
+            // Formules qui incluent le module, dans l'ordre du catalogue : « VIP ou Entreprise ».
+            $formules = collect(config('plans.plans'))
+                ->filter(fn ($plan) => in_array($fonctionnalite, $plan['fonctionnalites'], true))
+                ->pluck('libelle')
+                ->implode(' ou ');
+
             return response()->json([
-                'message' => "Cette fonctionnalité n'est pas incluse dans votre abonnement ({$etablissement?->plan_label}). Contactez votre fournisseur pour passer à un plan supérieur.",
+                'message' => $formules
+                    ? "Cette fonctionnalité nécessite le forfait {$formules}. Contactez l'administrateur pour mettre à niveau votre établissement."
+                    : "Cette fonctionnalité n'est pas incluse dans votre formule. Contactez l'administrateur pour mettre à niveau votre établissement.",
                 'code' => 'plan_insuffisant',
             ], 403);
         }

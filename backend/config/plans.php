@@ -11,7 +11,7 @@ $standard = [
 $vip = array_merge($standard, [
     'conseil_classe', 'export_comptable', 'alertes',
     'rgpd', 'journal_export', 'dossiers_examen', 'classes_examen', 'analyses_avancees', 'espace_parent', 'cahier_texte',
-    'presence_temps_reel', 'planning_examens', 'fil_actualite', 'permissions_granulaires',
+    'pointage_enseignants', 'presence_temps_reel', 'planning_examens', 'fil_actualite', 'permissions_granulaires',
     'bulletin_personnalise',
 ]);
 

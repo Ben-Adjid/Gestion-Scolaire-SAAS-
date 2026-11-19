@@ -89,7 +89,7 @@ const planBadge = (plan) => PLANS.find(p => p.value === plan) || PLANS[1]
 const statutBadge = (statut) => STATUTS.find(s => s.value === statut) || STATUTS[0]
 
 const EMPTY_FORM = {
-  nom: '', responsable: '', telephone: '', adresse: '',
+  nom: '', responsable: '', telephone: '', adresse: '', ville: '', email: '',
   annee_scolaire: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
   prefixe_matricule: '', plan: 'standard', pays: 'TD',
   // Démarrage : essai gratuit ou premier paiement (même circuit qu'un renouvellement, avec facture).
@@ -125,6 +125,99 @@ function badgeSante(score) {
   return <span className={`badge ${classe}`}>{score} / 100</span>
 }
 
+// Durées proposées pour une prolongation manuelle (paiement reçu hors ligne : espèces, virement direct…).
+const DUREES_PROLONGATION = [
+  { mois: 1, libelle: '+1 mois (30 jours)' },
+  { mois: 3, libelle: '+3 mois' },
+  { mois: 12, libelle: '+1 an' },
+]
+
+const MODES_HORS_LIGNE = [
+  { value: 'especes', label: 'Espèces' },
+  { value: 'virement', label: 'Virement bancaire' },
+  { value: 'mobile_money', label: 'Mobile money' },
+  { value: 'carte', label: 'Carte bancaire' },
+]
+
+// Prolongation manuelle : même circuit qu'un renouvellement (période, paiement et facture).
+function ProlongerAbonnement({ etab, onClose, onDone }) {
+  const toast = useToast()
+  const prix = PLANS.find((p) => p.value === etab.plan)?.price || 0
+  const [duree, setDuree] = useState(1)
+  const [montant, setMontant] = useState(String(prix))
+  const [mode, setMode] = useState('especes')
+  const [reference, setReference] = useState('')
+  const [envoi, setEnvoi] = useState(false)
+  const [erreur, setErreur] = useState(null)
+
+  const choisirDuree = (mois) => {
+    setDuree(mois)
+    setMontant(String(mois * prix))
+  }
+
+  const valider = async (ev) => {
+    ev.preventDefault()
+    setEnvoi(true)
+    setErreur(null)
+    try {
+      const res = await client.post(`/super-admin/etablissements/${etab.id}/renouveler`, {
+        plan: etab.plan,
+        duree_mois: duree,
+        montant: Number(montant),
+        mode_paiement: mode,
+        reference: reference || null,
+      })
+      toast.success(res.data.message)
+      onDone()
+    } catch (err) {
+      setErreur(err.message || 'La prolongation n’a pas pu être enregistrée.')
+    } finally {
+      setEnvoi(false)
+    }
+  }
+
+  return (
+    <Modal
+      open
+      title={`Prolonger : ${etab.nom}`}
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" className="btn btn--ghost" onClick={onClose} disabled={envoi}>Annuler</button>
+          <button type="submit" form="prolonger-form" className="btn btn--primary" disabled={envoi || Number(montant) < 0}>
+            {envoi ? 'Enregistrement…' : 'Enregistrer la prolongation'}
+          </button>
+        </>
+      }
+    >
+      <form id="prolonger-form" onSubmit={valider}>
+        <p className="muted">
+          Formule {PLANS.find((p) => p.value === etab.plan)?.label || etab.plan}.
+          {etab.abonnement_fin ? ` Échéance actuelle : ${etab.abonnement_fin}.` : ''}
+          {' '}La période s’ajoute à l’échéance actuelle si elle n’est pas dépassée.
+        </p>
+        {erreur && <Alert>{erreur}</Alert>}
+        <Field label="Durée" htmlFor="prolonger-duree">
+          <Select id="prolonger-duree" value={duree} onChange={(e) => choisirDuree(Number(e.target.value))}>
+            {DUREES_PROLONGATION.map((d) => <option key={d.mois} value={d.mois}>{d.libelle}</option>)}
+          </Select>
+        </Field>
+        <Field label="Montant reçu (FCFA)" htmlFor="prolonger-montant" required>
+          <Input id="prolonger-montant" type="number" min="0" value={montant} onChange={(e) => setMontant(e.target.value)} />
+        </Field>
+        <Field label="Mode de paiement" htmlFor="prolonger-mode">
+          <Select id="prolonger-mode" value={mode} onChange={(e) => setMode(e.target.value)}>
+            {MODES_HORS_LIGNE.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+          </Select>
+        </Field>
+        <Field label="Référence (facultatif)" htmlFor="prolonger-reference" hint="Numéro de reçu ou de virement, pour la trace comptable.">
+          <Input id="prolonger-reference" value={reference} onChange={(e) => setReference(e.target.value)} />
+        </Field>
+      </form>
+    </Modal>
+  )
+}
+
 export default function SuperAdmin({ section = 'ecoles' }) {
   const toast = useToast()
   const [stats, setStats] = useState(null)
@@ -136,6 +229,9 @@ export default function SuperAdmin({ section = 'ecoles' }) {
   const [error, setError] = useState(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [paysFilter, setPaysFilter] = useState('')
+  const [planFilter, setPlanFilter] = useState('')
+  const [prolongerEtab, setProlongerEtab] = useState(null)
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -171,11 +267,14 @@ export default function SuperAdmin({ section = 'ecoles' }) {
 
   const visibleEtablissements = etablissements.filter((etab) => {
     const matchesSearch = !search.trim()
-      || `${etab.nom} ${etab.responsable || ''}`.toLowerCase().includes(search.trim().toLowerCase())
+      || `${etab.nom} ${etab.responsable || ''} ${etab.ville || ''} ${etab.email || ''}`.toLowerCase().includes(search.trim().toLowerCase())
     // Page « Écoles à risque » : seulement les écoles actives sous le seuil.
     const aRisque = section !== 'risque'
       || (etab.statut_abonnement === 'actif' && (etab.sante?.score ?? 100) <= SEUIL_RISQUE)
-    return matchesSearch && aRisque && (!statusFilter || etab.statut_abonnement === statusFilter)
+    return matchesSearch && aRisque
+      && (!statusFilter || etab.statut_abonnement === statusFilter)
+      && (!paysFilter || etab.pays === paysFilter)
+      && (!planFilter || etab.plan === planFilter)
   })
 
   // Le mot de passe temporaire s'affiche une seule fois, dans un champ prêt à être copié.
@@ -229,7 +328,7 @@ export default function SuperAdmin({ section = 'ecoles' }) {
     setEditing(e)
     setForm({
       nom: e.nom || '', responsable: e.responsable || '',
-      telephone: e.telephone || '', adresse: e.adresse || '',
+      telephone: e.telephone || '', adresse: e.adresse || '', ville: e.ville || '', email: e.email || '',
       annee_scolaire: e.annee_scolaire || '',
       prefixe_matricule: e.prefixe_matricule || '', plan: e.plan || 'standard',
       pays: e.pays || 'TD',
@@ -422,6 +521,14 @@ export default function SuperAdmin({ section = 'ecoles' }) {
                 <option value="">Tous les statuts</option>
                 {STATUTS.map((statut) => <option key={statut.value} value={statut.value}>{statut.label}</option>)}
               </Select>
+              <Select value={paysFilter} onChange={(event) => setPaysFilter(event.target.value)} aria-label="Filtrer par pays">
+                <option value="">Tous les pays</option>
+                {listePays.map((p) => <option key={p.code} value={p.code}>{p.nom}</option>)}
+              </Select>
+              <Select value={planFilter} onChange={(event) => setPlanFilter(event.target.value)} aria-label="Filtrer par offre">
+                <option value="">Toutes les offres</option>
+                {PLANS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+              </Select>
               <button type="button" className="btn btn--ghost" onClick={exporterCsv}>Exporter Excel</button>
             </div>
           )}
@@ -483,6 +590,7 @@ export default function SuperAdmin({ section = 'ecoles' }) {
                             <button className="btn btn--ghost btn--sm" onClick={() => renvoyerActivation(etab)}>Renvoyer l’activation</button>
                             <button className="btn btn--ghost btn--sm" onClick={() => reinitialiserMotDePasse(etab)}>Mot de passe</button>
                             <button className="btn btn--ghost btn--sm" onClick={() => openEdit(etab)}>Modifier</button>
+                            <button className="btn btn--ghost btn--sm" onClick={() => setProlongerEtab(etab)}>Prolonger</button>
                             {etab.statut_abonnement === 'suspendu' ? (
                               <button className="btn btn--ghost btn--sm" onClick={() => handleReactiver(etab)}>Réactiver</button>
                             ) : (
@@ -504,6 +612,14 @@ export default function SuperAdmin({ section = 'ecoles' }) {
       </>)}
 
       {/* ── Modale création / modification ── */}
+      {prolongerEtab && (
+        <ProlongerAbonnement
+          etab={prolongerEtab}
+          onClose={() => setProlongerEtab(null)}
+          onDone={() => { setProlongerEtab(null); fetchAll() }}
+        />
+      )}
+
       <Modal
         open={modalOpen}
         title={editing ? `Modifier : ${editing.nom}` : 'Nouvel établissement'}
@@ -529,6 +645,12 @@ export default function SuperAdmin({ section = 'ecoles' }) {
             </Field>
             <Field label="Téléphone" error={formErrors.telephone}>
               <Input name="telephone" value={form.telephone} onChange={handleChange} />
+            </Field>
+            <Field label="Ville" error={formErrors.ville}>
+              <Input name="ville" value={form.ville} onChange={handleChange} />
+            </Field>
+            <Field label="E-mail de l'établissement" error={formErrors.email}>
+              <Input type="email" name="email" value={form.email} onChange={handleChange} />
             </Field>
             <Field label="Année scolaire" error={formErrors.annee_scolaire}>
               <Input name="annee_scolaire" value={form.annee_scolaire} onChange={handleChange} />

@@ -171,6 +171,31 @@ class FraisScolaireController extends Controller
         return response()->json(['message' => 'Frais supprimés.']);
     }
 
+    /**
+     * Envoie le reçu PDF aux parents rattachés à l'élève qui ont une adresse e-mail.
+     * Un échec d'envoi ne bloque jamais l'encaissement : il est seulement journalisé.
+     */
+    private function envoyerRecu(Paiement $paiement): void
+    {
+        $destinataires = $paiement->etudiant?->parents()
+            ->whereNotNull('email')
+            ->where('email', '!=', '')
+            ->pluck('email')
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($destinataires === []) {
+            return;
+        }
+
+        try {
+            \Illuminate\Support\Facades\Mail::to($destinataires)->send(new \App\Mail\PaymentReceiptMail($paiement));
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
     public function addPaiement(Request $request, FraisScolaire $frais): JsonResponse
     {
         $validated = $request->validate([
@@ -211,6 +236,8 @@ class FraisScolaireController extends Controller
                 'date' => (string) $paiement->date_paiement,
                 'reference' => $paiement->reference,
             ]);
+
+        $this->envoyerRecu($paiement);
 
         return response()->json([
             'paiement' => $paiement,

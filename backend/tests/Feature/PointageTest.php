@@ -98,6 +98,7 @@ class PointageTest extends TestCase
 
         Etablissement::create([
             'nom' => 'Lycée Test',
+            'plan' => 'vip', // Le pointage des enseignants est réservé à la formule VIP et plus.
             'latitude' => 12.1064,
             'longitude' => 15.0445,
             'rayon_pointage' => 150,

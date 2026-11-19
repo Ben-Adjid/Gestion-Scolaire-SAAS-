@@ -122,14 +122,36 @@ class ImportExportController extends Controller
         ], 201);
     }
 
+    /**
+     * Liste des élèves (Excel ou CSV) : mêmes filtres que l'écran, colonnes fixes pour le suivi administratif.
+     * Statut = inscrit cette année ; contact du tuteur = premier parent rattaché à l'élève.
+     */
     public function exporterEtudiants(Request $request)
     {
-        $etudiants = Etudiant::with('classe:id,nom')->orderBy('nom')->orderBy('prenom')->get();
+        $etudiants = \App\Services\FiltreEleves::appliquer(
+            Etudiant::query()
+                ->with(['classe:id,nom', 'parents:id,name,telephone,email'])
+                ->withExists(['inscriptions as est_inscrit' => \App\Services\FiltreEleves::inscritCetteAnnee($request)]),
+            $request
+        )->orderBy('nom')->orderBy('prenom')->get();
 
-        return $this->exporter($request, 'eleves', 'Élèves', ['Matricule', 'Nom', 'Prénom', 'Classe', 'Date de naissance', 'Genre', 'Téléphone', 'Adresse'],
-            $etudiants->map(fn ($e) => [
-                $e->matricule, $e->nom, $e->prenom, $e->classe?->nom, $e->date_naissance?->format('d/m/Y'), $e->genre, $e->telephone, $e->adresse,
-            ])->all());
+        $lignes = $etudiants->map(function ($e) {
+            $tuteur = $e->parents->first();
+
+            return [
+                $e->matricule,
+                $e->nom,
+                $e->prenom,
+                match ($e->genre) { 'M' => 'Masculin', 'F' => 'Féminin', default => '' },
+                $e->classe?->nom,
+                $e->est_inscrit ? 'Actif' : 'Inactif',
+                $tuteur?->telephone ?? '',
+                $tuteur?->email ?? '',
+            ];
+        })->all();
+
+        return $this->exporter($request, 'eleves', 'Élèves',
+            ['Matricule', 'Nom', 'Prénom', 'Sexe', 'Classe', 'Statut', 'Contact Tuteur', 'Email Tuteur'], $lignes);
     }
 
     /** Exporte en Excel (format=xlsx, par défaut) ou en CSV (format=csv), avec une mise en forme soignée. */

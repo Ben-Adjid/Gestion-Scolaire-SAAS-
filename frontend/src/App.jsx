@@ -275,7 +275,9 @@ export default function App() {
           path="pointer"
           element={
             <RoleRoute roles={['enseignant']}>
-              <Pointer />
+              <PlanRoute feature="pointage_enseignants">
+                <Pointer />
+              </PlanRoute>
             </RoleRoute>
           }
         />
@@ -283,7 +285,9 @@ export default function App() {
           path="presence-enseignants"
           element={
             <RoleRoute roles={['admin', 'proviseur', 'censeur']}>
-              <PresenceEnseignants />
+              <PlanRoute feature="pointage_enseignants">
+                <PresenceEnseignants />
+              </PlanRoute>
             </RoleRoute>
           }
         />

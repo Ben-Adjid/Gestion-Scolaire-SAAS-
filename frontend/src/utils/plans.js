@@ -13,3 +13,12 @@ export function formuleMinimale(feature, etablissement) {
   const code = ORDRE_FORMULES.find((c) => (formules[c]?.fonctionnalites || []).includes(feature))
   return code ? formules[code].libelle : null
 }
+
+// Toutes les formules qui incluent la fonctionnalité, jointes par « ou » (ex. « VIP ou Entreprise »).
+export function formulesQuiIncluent(feature, etablissement) {
+  const formules = etablissement?.formules || {}
+  const libelles = ORDRE_FORMULES
+    .filter((c) => (formules[c]?.fonctionnalites || []).includes(feature))
+    .map((c) => formules[c].libelle)
+  return libelles.join(' ou ') || null
+}

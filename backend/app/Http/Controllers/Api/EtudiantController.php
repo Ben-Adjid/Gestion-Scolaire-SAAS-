@@ -27,33 +27,8 @@ class EtudiantController extends Controller
             ->withExists(['notes as a_notes_validees' => fn ($q) => $q->where('statut', 'valide')])
             ->withExists(['fraisScolaires as a_paiements' => fn ($q) => $q->whereHas('paiements', fn ($p) => $p->where('statut', 'completed'))]);
 
-        $classeIds = TeacherScope::classeIds($request->user());
-        if ($classeIds !== null) {
-            $query->whereIn('classe_id', $classeIds);
-        }
-
-        if ($request->classe_id) {
-            $query->where('classe_id', $request->classe_id);
-        }
-
-        // Recherche par nom, prénom, matricule ou e-mail (insensible à la casse, les espaces sont ignorés aux extrémités).
-        $recherche = trim((string) $request->query('search', ''));
-        if ($recherche !== '') {
-            $query->where(fn ($q) => $q->where('nom', 'like', "%{$recherche}%")
-                ->orWhere('prenom', 'like', "%{$recherche}%")
-                ->orWhere('matricule', 'like', "%{$recherche}%")
-                ->orWhere('email', 'like', "%{$recherche}%"));
-        }
-
-        // Statut : actif = inscrit pour l'année en cours de l'école ; inactif = pas d'inscription cette année.
-        $statut = $request->query('statut');
-        if (in_array($statut, ['actif', 'inactif'], true)) {
-            $annee = $request->user()->etablissement?->annee_scolaire;
-            $inscrit = fn ($q) => $q->where('statut', 'active')->when($annee, fn ($i) => $i->where('annee_scolaire', $annee));
-            $statut === 'actif'
-                ? $query->whereHas('inscriptions', $inscrit)
-                : $query->whereDoesntHave('inscriptions', $inscrit);
-        }
+        // Filtres communs à l'écran et aux exports (périmètre, classe, genre, recherche, statut).
+        \App\Services\FiltreEleves::appliquer($query, $request);
 
         return response()->json($query->paginate(20));
     }

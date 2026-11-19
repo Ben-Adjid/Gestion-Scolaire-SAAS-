@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useEtablissement } from '../context/EtablissementContext'
 import { aLaFonctionnalite } from '../utils/plans'
 import { ChampsParent, IdentifiantsParent, PARENT_VIDE, parentAEnvoyer } from '../components/CompteParent'
-import { classesApi, etudiantsApi } from '../api/endpoints'
+import { classesApi, etudiantsApi, exportApi, telecharger } from '../api/endpoints'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -14,7 +14,6 @@ import Pagination from '../components/Pagination'
 import Alert from '../components/Alert'
 import { useToast } from '../components/Toast'
 import { Field, Input, Select } from '../components/Field'
-import { downloadCsv } from '../utils/csv'
 import { downloadTablePdf } from '../utils/pdf'
 import { formatDate } from '../utils/format'
 import { exempleTelephone } from '../utils/pays'
@@ -238,28 +237,19 @@ export default function Etudiants() {
 
   const genreLabel = (genre) => (genre === 'M' ? 'Masculin' : genre === 'F' ? 'Féminin' : '—')
 
-  const handleDownload = () => {
-    const header = ['Nom', 'Prénom', 'Matricule', 'Classe', 'Genre', 'Date de naissance', 'Téléphone', 'Email']
-    const rows = []
-    const push = (e) =>
-      rows.push([
-        e.nom,
-        e.prenom,
-        e.matricule || '',
-        e.classe?.nom || 'Sans classe',
-        genreLabel(e.genre),
-        formatDate(e.date_naissance),
-        e.telephone || '',
-        e.email || '',
-      ])
-
-    if (view === 'grouped') {
-      Object.values(grouped).forEach((list) => list.forEach(push))
-    } else {
-      items.forEach(push)
+  // Export CSV généré par le serveur : mêmes colonnes et mêmes filtres que la liste affichée.
+  const handleDownload = async () => {
+    try {
+      const res = await exportApi.elevesCsv({
+        search: search || undefined,
+        classe_id: filters.classe_id || undefined,
+        genre: filters.genre || undefined,
+        statut: filters.statut || undefined,
+      })
+      telecharger(res.data, `eleves-${new Date().toISOString().slice(0, 10)}.csv`)
+    } catch (err) {
+      toast.error(err.message || 'L’export des élèves n’a pas pu être téléchargé.')
     }
-
-    downloadCsv(`eleves-${new Date().toISOString().slice(0, 10)}.csv`, [header, ...rows])
   }
 
   const handleDownloadPdf = () => {

@@ -198,6 +198,8 @@ export const conseilApi = {
 
 export const exportApi = {
   fraisCsv: (annee) => client.get('/frais-scolaires/export', { params: { annee_scolaire: annee }, responseType: 'blob' }),
+  // Liste des élèves au format CSV, avec les mêmes filtres que l'écran.
+  elevesCsv: (params) => client.get('/export/etudiants', { params: { ...params, format: 'csv' }, responseType: 'blob' }),
   recu: (paiementId) => client.get(`/paiements/${paiementId}/recu`, { responseType: 'blob' }),
 }
 

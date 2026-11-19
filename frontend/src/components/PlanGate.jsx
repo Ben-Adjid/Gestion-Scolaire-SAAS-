@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useEtablissement } from '../context/EtablissementContext'
-import { aLaFonctionnalite, formuleMinimale } from '../utils/plans'
+import { aLaFonctionnalite, formuleMinimale, formulesQuiIncluent } from '../utils/plans'
 
 // Pastille « VIP » indiquant la formule minimale requise.
 export function PremiumBadge({ feature }) {
@@ -33,13 +33,16 @@ export function FeatureButton({ feature, className = 'btn btn--ghost', onClick, 
 export function UpgradePrompt({ feature }) {
   const { etablissement } = useEtablissement()
   const libelle = formuleMinimale(feature, etablissement)
+  const formules = formulesQuiIncluent(feature, etablissement)
 
   return (
-    <div className="upgrade-prompt">
+    <div className="upgrade-prompt" role="status">
       <h2>Fonctionnalité {libelle ? `réservée à la formule ${libelle}` : 'non incluse'}</h2>
       <p>
-        Votre formule actuelle, <strong>{etablissement.plan_label || 'Standard'}</strong>, ne donne pas accès à cette page.
-        Contactez la plateforme pour passer à une formule supérieure.
+        {formules
+          ? <>Cette fonctionnalité nécessite le forfait <strong>{formules}</strong>. </>
+          : <>Cette fonctionnalité n’est pas incluse dans votre formule. </>}
+        Contactez l’administrateur pour mettre à niveau votre établissement.
       </p>
       <Link to="/" className="btn btn--primary">Retour au tableau de bord</Link>
     </div>
