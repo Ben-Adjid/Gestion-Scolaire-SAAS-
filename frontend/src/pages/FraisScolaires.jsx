@@ -66,12 +66,14 @@ export default function FraisScolaires() {
   const [saving, setSaving] = useState(false)
 
   const [paiementFor, setPaiementFor] = useState(null)
-  const [paiementForm, setPaiementForm] = useState({
+  // Formulaire d'encaissement vide : mode par défaut « espèces », date du jour.
+  const formulairePaiementVide = () => ({
     montant: '',
     date_paiement: new Date().toISOString().slice(0, 10),
     mode: 'especes',
     payeur_nom: '',
   })
+  const [paiementForm, setPaiementForm] = useState(formulairePaiementVide)
   const [savingPaiement, setSavingPaiement] = useState(false)
   const [recusDe, setRecusDe] = useState(null)
   const [paiementsRecus, setPaiementsRecus] = useState([])
@@ -203,12 +205,7 @@ export default function FraisScolaires() {
 
   const openPaiement = (item) => {
     setPaiementFor(item)
-    setPaiementForm({
-      montant: item.reste > 0 ? item.reste : '',
-      date_paiement: new Date().toISOString().slice(0, 10),
-      mode: 'especes',
-      payeur_nom: '',
-    })
+    setPaiementForm({ ...formulairePaiementVide(), montant: item.reste > 0 ? item.reste : '' })
   }
 
   const handlePaiementSubmit = async (e) => {
@@ -217,6 +214,8 @@ export default function FraisScolaires() {
     try {
       await fraisScolairesApi.addPaiement(paiementFor.id, paiementForm)
       toast.success('Paiement enregistré avec succès.')
+      // Formulaire entièrement réinitialisé : montant, payeur, date et mode repartent de zéro.
+      setPaiementForm(formulairePaiementVide())
       setPaiementFor(null)
       fetchData()
     } catch (err) {

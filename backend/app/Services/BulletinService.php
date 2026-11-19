@@ -81,11 +81,31 @@ class BulletinService
      * Année à partir de laquelle on juge un élève : celle de sa dernière inscription
      * (l'année qu'il vient de terminer lors d'une réinscription), sinon celle de sa fiche.
      */
+    /**
+     * Année du bulletin : la dernière année inscrite qui a des notes. Un élève réinscrit mais pas encore noté
+     * garde ainsi le bulletin de son année précédente, avec sa classe et sa moyenne de cette année-là.
+     */
     public function anneeDeReference(Etudiant $etudiant): ?string
     {
-        $derniere = $etudiant->inscriptions()->orderByDesc('date_inscription')->orderByDesc('id')->value('annee_scolaire');
+        $annees = $etudiant->inscriptions()->orderByDesc('date_inscription')->orderByDesc('id')->pluck('annee_scolaire')->unique()->values();
 
-        return $derniere ?: $etudiant->annee_scolaire;
+        foreach ($annees as $annee) {
+            if ($etudiant->notes()->where('annee_scolaire', $annee)->exists()) {
+                return $annee;
+            }
+        }
+
+        return $annees->first() ?: $etudiant->annee_scolaire;
+    }
+
+    /** Classe de l'élève pour une année donnée (inscription de cette année), sinon sa classe actuelle. */
+    public function classeDeReference(Etudiant $etudiant, ?string $annee): ?int
+    {
+        $inscription = $annee
+            ? $etudiant->inscriptions()->where('annee_scolaire', $annee)->orderByDesc('id')->first()
+            : null;
+
+        return $inscription?->classe_id ?? $etudiant->classe_id;
     }
 
     public function moyenneAnnuelle(Etudiant $etudiant, ?string $annee = null): ?float
@@ -150,7 +170,8 @@ class BulletinService
             ->with('matiere')
             ->get();
 
-        $statsClasse = $this->statsParMatiereClasse($etudiant, $trimestre, $annee);
+        $classeId = $this->classeDeReference($etudiant, $annee);
+        $statsClasse = $this->statsParMatiereClasse($etudiant, $trimestre, $annee, $classeId);
 
         $matieres = $notes->groupBy('matiere_id')->map(function (Collection $notesMatiere) use ($statsClasse) {
             $matiere = $notesMatiere->first()->matiere;
@@ -178,24 +199,24 @@ class BulletinService
 
         return [
             'etudiant' => $etudiant->loadMissing('classe:id,nom,niveau'),
-            'classe' => $etudiant->classe?->only(['id', 'nom', 'niveau']),
+            'classe' => \App\Models\Classe::find($classeId)?->only(['id', 'nom', 'niveau']),
             'trimestre' => $trimestre,
             'matieres' => $matieres,
-            'effectif' => Etudiant::where('classe_id', $etudiant->classe_id)->count(),
+            'effectif' => Etudiant::where('classe_id', $classeId)->count(),
             'moyenne_generale' => $moyenneGenerale,
             'appreciation_generale' => $mention['label'] ?? '',
             'mention' => $mention,
             'decision' => $this->decision($notes->isEmpty() ? null : $moyenneGenerale),
-            'rang' => $this->rang($etudiant, $trimestre, $annee),
+            'rang' => $this->rang($etudiant, $trimestre, $annee, $classeId),
         ];
     }
 
     /**
      * Pour chaque matière : moyenne de la classe, plus petite et plus grande moyenne d'élève.
      */
-    private function statsParMatiereClasse(Etudiant $etudiant, ?int $trimestre, ?string $annee = null): array
+    private function statsParMatiereClasse(Etudiant $etudiant, ?int $trimestre, ?string $annee = null, ?int $classeId = null): array
     {
-        $ids = Etudiant::where('classe_id', $etudiant->classe_id)->pluck('id');
+        $ids = Etudiant::where('classe_id', $classeId ?? $etudiant->classe_id)->pluck('id');
 
         $parMatiere = \App\Models\Note::query()
             ->whereIn('etudiant_id', $ids)
@@ -231,9 +252,9 @@ class BulletinService
         return $totalCoefficient > 0 ? $totalPoints / $totalCoefficient : 0.0;
     }
 
-    private function rang(Etudiant $etudiant, ?int $trimestre, ?string $annee = null): ?int
+    private function rang(Etudiant $etudiant, ?int $trimestre, ?string $annee = null, ?int $classeId = null): ?int
     {
-        $ids = Etudiant::where('classe_id', $etudiant->classe_id)->pluck('id')->all();
+        $ids = Etudiant::where('classe_id', $classeId ?? $etudiant->classe_id)->pluck('id')->all();
         $position = array_search($etudiant->id, array_keys($this->computeClassAverages($ids, $trimestre, $annee)), true);
 
         return $position === false ? null : $position + 1;

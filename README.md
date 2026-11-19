@@ -205,7 +205,7 @@ Les coordonnées vides désactivent le mode correspondant. La passerelle héberg
 
 ## Déploiement
 
-Ce dépôt ne contient pas de configuration Docker ni de procédure de déploiement production vérifiée. Avant mise en production, configurez HTTPS, la base de données, les sauvegardes, le stockage privé des fichiers, SMTP, les tâches planifiées et les identifiants des fournisseurs réellement utilisés ; exécutez les migrations et toutes les suites de tests dans un environnement de préproduction. Les étapes locales ci-dessus ne constituent pas une certification de production.
+Le dépôt fournit `deploy.sh` (déploiement Ubuntu), `backend/.env.production.example` (configuration sans secret), `deploy/laravel-worker.service` (worker de file d'attente) et la commande `php artisan make:superadmin`. Ces éléments n'ont pas encore été exécutés sur un serveur de production. Avant mise en production, configurez HTTPS, la base de données, les sauvegardes, le stockage privé des fichiers, SMTP, les tâches planifiées et les identifiants des fournisseurs réellement utilisés ; exécutez les migrations et toutes les suites de tests dans un environnement de préproduction. Les étapes locales ci-dessus ne constituent pas une certification de production.
 
 ---
 
@@ -227,6 +227,15 @@ Le dépôt contient des modules métier, des contrôles d'accès, des tests et u
 
 ---
 
+## Retours de test : statut
+
+- **Reçu de paiement** : la route `/paiements/{id}/recu` renvoie le PDF généré côté serveur, avec la même mise en page que l'e-mail. Résolu et couvert par les tests.
+- **Bulletin des élèves réinscrits** : classe, niveau et moyenne suivent l'année notée. Une réinscription active met à jour la classe actuelle de l'élève. Résolu et couvert par les tests.
+- **Formulaire d'encaissement** : réinitialisé après chaque enregistrement réussi (montant, payeur, date, mode). Résolu et vérifié à l'écran.
+- **Modifier / Supprimer** : la suppression demande une confirmation nommant l'élément ; un élève ayant des notes validées ou des paiements ne peut pas être supprimé. Résolu et vérifié à l'écran.
+
+---
+
 ## License
 
 Proprietary - Tous droits reserves
@@ -245,5 +254,3 @@ Proprietary - Tous droits reserves
 
 
 
-pour le bulletin je vois pas la classe ni niveau et lorsque des reinscription je vois pas la moyenne s'affiche 
-la partie du paime là il faut voir le reçus c'est telecharge en fichier html au lieux de pdf et apres encaissement le mode paiement est toujours active alors ce n'est pas normal,aussi pour le bouton modifier et supprime 

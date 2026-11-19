@@ -298,42 +298,15 @@ class FraisScolaireController extends Controller
         ]);
     }
 
+    /** Reçu de paiement officiel au format PDF (même mise en page que l'e-mail et l'écran). */
     public function recu(Paiement $paiement)
     {
-        $paiement->load(['etudiant:id,nom,prenom,matricule', 'fraisScolaire']);
-        $frais = $paiement->fraisScolaire;
-        $etablissement = Etablissement::find($paiement->etablissement_id);
-        $identite = \App\Services\IdentiteEtablissement::pour($etablissement);
-        $montant = fn ($v) => number_format((float) $v, 0, ',', ' ');
-        $modes = ['especes' => 'Espèces', 'virement' => 'Virement', 'cheque' => 'Chèque', 'mobile_money' => 'Mobile money', 'carte' => 'Carte bancaire', 'en_ligne' => 'Paiement en ligne'];
+        $numero = \App\Services\RecuPaiement::donnees($paiement)['numero'];
 
-        // Gabarit Blade : échappement automatique, mise en page aux couleurs de l'école.
-        $html = view('documents.recu-paiement', [
-            'numero' => 'REC-'.str_pad((string) $paiement->id, 6, '0', STR_PAD_LEFT),
-            'ecole' => $identite,
-            'logo' => $identite['logo'],
-            'couleur' => $identite['couleur'],
-            'teinte' => $identite['teinte'],
-            'datePaiement' => $paiement->date_paiement?->format('d/m/Y'),
-            'eleve' => [
-                'nom' => trim(($paiement->etudiant?->prenom ?? '').' '.($paiement->etudiant?->nom ?? '')),
-                'matricule' => $paiement->etudiant?->matricule,
-            ],
-            'frais' => [
-                'libelle' => $frais?->libelle ?? 'Frais de scolarité',
-                'annee' => $frais?->annee_scolaire,
-                'total' => $montant($frais?->montant_total),
-                'paye' => $montant($frais?->montant_paye),
-                'reste' => $montant($frais?->reste),
-            ],
-            'solde' => $frais && (float) $frais->reste <= 0,
-            'mode' => $modes[$paiement->mode_paiement] ?? ucfirst((string) $paiement->mode_paiement),
-            'reference' => $paiement->reference,
-            'montant' => $montant($paiement->montant),
-            'emisLe' => now()->format('d/m/Y à H:i'),
-        ])->render();
-
-        return response($html, 200, ['Content-Type' => 'text/html; charset=UTF-8']);
+        return response(\App\Services\RecuPaiement::generer($paiement), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="recu-'.$numero.'.pdf"',
+        ]);
     }
 
     private function donneesFrais(array $validated, ?FraisScolaire $existant = null): array

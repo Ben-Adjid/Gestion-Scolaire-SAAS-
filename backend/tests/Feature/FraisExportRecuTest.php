@@ -62,10 +62,12 @@ class FraisExportRecuTest extends TestCase
         [$gestionnaire, , $paiement] = $this->fraisAvecPaiement();
         Sanctum::actingAs($gestionnaire);
 
-        $this->get("/api/paiements/{$paiement->id}/recu")
-            ->assertOk()
-            ->assertSee('REC-'.str_pad((string) $paiement->id, 6, '0', STR_PAD_LEFT))
-            ->assertSee('20 000 FCFA');
+        $res = $this->get("/api/paiements/{$paiement->id}/recu")->assertOk();
+        $this->assertStringContainsString('application/pdf', $res->headers->get('Content-Type'));
+        $this->assertStringStartsWith('%PDF', $res->getContent());
+        $donnees = \App\Services\RecuPaiement::donnees($paiement->fresh());
+        $this->assertStringStartsWith('REC-', $donnees['numero']);
+        $this->assertSame('20 000 FCFA', $donnees['montantEncaisse']);
     }
 
     public function test_export_et_recu_refuses_aux_roles_sans_droit(): void

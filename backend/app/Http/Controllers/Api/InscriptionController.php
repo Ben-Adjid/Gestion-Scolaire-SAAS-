@@ -148,6 +148,14 @@ class InscriptionController extends Controller
                 'etudiant_id', 'classe_id', 'annee_scolaire', 'type', 'date_inscription', 'statut',
             ])->all());
 
+            // La classe et l'année actuelles de l'élève suivent son inscription active (réinscription comprise).
+            if ($inscription->statut === 'active') {
+                Etudiant::whereKey($data['etudiant_id'])->update([
+                    'classe_id' => $data['classe_id'],
+                    'annee_scolaire' => $data['annee_scolaire'],
+                ]);
+            }
+
             // Compte parent : créé, ou parent existant relié (frère/sœur, réinscription). Une erreur annule l'inscription.
             $compteParent = app(\App\Services\CompteParentService::class)
                 ->rattacher(Etudiant::findOrFail($data['etudiant_id']), $data['parent'] ?? null, $request->user());

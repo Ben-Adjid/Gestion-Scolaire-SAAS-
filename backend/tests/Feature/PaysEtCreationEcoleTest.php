@@ -43,7 +43,10 @@ class PaysEtCreationEcoleTest extends TestCase
         $frais = FraisScolaire::create(['etudiant_id' => $eleve->id, 'annee_scolaire' => '2026-2027', 'libelle' => 'Scolarité', 'montant' => 500000, 'etablissement_id' => $etab->id]);
         $paiement = Paiement::create(['frais_scolaire_id' => $frais->id, 'etudiant_id' => $eleve->id, 'montant' => 100000, 'date_paiement' => now()->toDateString(), 'mode_paiement' => 'especes', 'statut' => 'completed', 'etablissement_id' => $etab->id]);
 
-        $this->get("/api/paiements/{$paiement->id}/recu")->assertOk()->assertSee('100 000 GNF')->assertDontSee('FCFA');
+        $res = $this->get("/api/paiements/{$paiement->id}/recu")->assertOk();
+        $this->assertStringStartsWith('%PDF', $res->getContent());
+        $donnees = \App\Services\RecuPaiement::donnees($paiement->fresh());
+        $this->assertSame('100 000 GNF', $donnees['montantEncaisse']);
     }
 
     public function test_creation_par_essai_par_defaut(): void

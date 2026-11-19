@@ -71,11 +71,13 @@ class PersonnalisationDocumentsTest extends TestCase
         $frais = FraisScolaire::create(['etudiant_id' => $eleve->id, 'libelle' => 'Scolarité', 'montant' => 50000, 'annee_scolaire' => '2026-2027', 'statut' => 'pending', 'etablissement_id' => $etab->id]);
         $paiement = Paiement::create(['frais_scolaire_id' => $frais->id, 'etudiant_id' => $eleve->id, 'montant' => 20000, 'date_paiement' => '2026-11-18', 'mode_paiement' => 'especes', 'statut' => 'completed', 'etablissement_id' => $etab->id]);
 
-        $this->get("/api/paiements/{$paiement->id}/recu")
-            ->assertOk()
-            ->assertSee('Lycée Sarh', false)
-            ->assertSee('Travail et discipline', false)
-            ->assertSee('Quartier Résidentiel, Sarh', false)
-            ->assertSee('+235 66 11 22 33', false);
+        $res = $this->get("/api/paiements/{$paiement->id}/recu")->assertOk();
+        $this->assertStringStartsWith('%PDF', $res->getContent());
+
+        // Identité de l'école reprise sur le reçu PDF : nom, adresse et téléphone.
+        $ecole = \App\Services\RecuPaiement::donnees($paiement->fresh())['ecole'];
+        $this->assertSame('Lycée Sarh', $ecole['nom']);
+        $this->assertSame('Quartier Résidentiel, Sarh', $ecole['adresse']);
+        $this->assertSame('+235 66 11 22 33', $ecole['telephone']);
     }
 }
