@@ -450,7 +450,7 @@ export default function FraisScolaires() {
           <>
             <button type="button" className="btn btn--ghost" onClick={() => setModalOpen(false)} disabled={saving}>Annuler</button>
             <button type="submit" form="frais-form" className="btn btn--primary" disabled={saving}>
-              {saving ? 'Enregistrement…' : 'Enregistrer'}
+              {saving ? <><Spinner size="sm" /> Enregistrement…</> : 'Enregistrer'}
             </button>
           </>
         }
@@ -489,7 +489,7 @@ export default function FraisScolaires() {
           <>
             <button type="button" className="btn btn--ghost" onClick={() => setPaiementFor(null)} disabled={savingPaiement}>Annuler</button>
             <button type="submit" form="paiement-form" className="btn btn--primary" disabled={savingPaiement}>
-              {savingPaiement ? 'Enregistrement…' : 'Encaisser'}
+              {savingPaiement ? <><Spinner size="sm" /> Encaissement…</> : 'Encaisser'}
             </button>
           </>
         }

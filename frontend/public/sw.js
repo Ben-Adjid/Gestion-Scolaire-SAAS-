@@ -1,7 +1,7 @@
 // Service worker : l'application s'ouvre hors ligne (coquille et ressources déjà vues).
 // Les données scolaires (API) et les fichiers téléversés ne sont JAMAIS mis en cache : elles viennent toujours du réseau.
-const VERSION = 'ecole-v4'
-const COQUILLE = ['/', '/manifest.webmanifest', '/favicon.svg', '/icons/icon-192.png', '/icons/icon-512.png']
+const VERSION = 'ecole-v5'
+const COQUILLE = ['/', '/manifest.webmanifest', '/favicon.svg', '/icons/icon-192x192.png', '/icons/icon-512x512.png']
 
 // Les fichiers générés par le build (scripts, styles) sont lus depuis index.html et mis en cache dès l'installation,
 // pour que l'application s'ouvre hors ligne dès la première visite complète.

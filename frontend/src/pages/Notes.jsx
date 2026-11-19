@@ -389,7 +389,7 @@ export default function Notes() {
                     {savingBulk ? 'Enregistrement…' : 'Enregistrer (brouillon)'}
                   </button>
                   <button type="button" className="btn btn--primary" onClick={() => saveBulk(true)} disabled={savingBulk || !matiereId}>
-                    Valider les notes
+                    {savingBulk ? <><Spinner size="sm" /> Validation…</> : 'Valider les notes'}
                   </button>
                 </div>
               </>
@@ -491,7 +491,7 @@ export default function Notes() {
         footer={
           <>
             <button type="button" className="btn btn--ghost" onClick={() => setModalOpen(false)} disabled={saving}>Annuler</button>
-            <button type="submit" form="note-form" className="btn btn--primary" disabled={saving}>Enregistrer</button>
+            <button type="submit" form="note-form" className="btn btn--primary" disabled={saving}>{saving ? <><Spinner size="sm" /> Enregistrement…</> : 'Enregistrer'}</button>
           </>
         }
       >

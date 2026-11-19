@@ -52,7 +52,7 @@ export default function Etudiants() {
   const [error, setError] = useState(null)
 
   const [search, setSearch] = useState('')
-  const [filters, setFilters] = useState({ classe_id: '', genre: '' })
+  const [filters, setFilters] = useState({ classe_id: '', genre: '', statut: '' })
   const [page, setPage] = useState(1)
   const [view, setView] = useState('table')
 
@@ -81,6 +81,7 @@ export default function Etudiants() {
         search: search || undefined,
         classe_id: filters.classe_id || undefined,
         genre: filters.genre || undefined,
+        statut: filters.statut || undefined,
         page,
       })
       setItems(res.data.data)
@@ -100,6 +101,7 @@ export default function Etudiants() {
         search: search || undefined,
         classe_id: filters.classe_id || undefined,
         genre: filters.genre || undefined,
+        statut: filters.statut || undefined,
         per_page: 1000,
       })
       const byClasse = {}
@@ -326,6 +328,17 @@ export default function Etudiants() {
               <option value="M">Masculin</option>
               <option value="F">Féminin</option>
             </Select>
+            <Select
+              name="statut"
+              value={filters.statut}
+              onChange={handleFilterChange}
+              className="filter-select"
+              aria-label="Filtrer par statut"
+            >
+              <option value="">Tous les statuts</option>
+              <option value="actif">Actifs (inscrits cette année)</option>
+              <option value="inactif">Inactifs (non inscrits)</option>
+            </Select>
             <div className="view-toggle no-print">
               <button
                 type="button"
@@ -421,12 +434,22 @@ export default function Etudiants() {
           <EmptyState
             title="Aucun élève"
             description={
-              search || filters.classe_id || filters.genre
-                ? 'Aucun élève ne correspond à vos critères.'
-                : 'Commencez par ajouter votre premier élève.'
+              search
+                ? 'Aucun élève ne correspond à votre recherche.'
+                : search || filters.classe_id || filters.genre || filters.statut
+                  ? 'Aucun élève ne correspond à ces filtres.'
+                  : 'Commencez par ajouter votre premier élève.'
             }
             action={
-              !search && !filters.classe_id && !filters.genre && (
+              search || filters.classe_id || filters.genre || filters.statut ? (
+                <button
+                  type="button"
+                  className="btn btn--ghost"
+                  onClick={() => { setSearch(''); setFilters({ classe_id: '', genre: '', statut: '' }); setPage(1) }}
+                >
+                  Effacer la recherche et les filtres
+                </button>
+              ) : (
                 <button type="button" className="btn btn--primary" onClick={openCreate}>
                   + Nouvel élève
                 </button>
@@ -511,7 +534,7 @@ export default function Etudiants() {
               Annuler
             </button>
             <button type="submit" form="etudiant-form" className="btn btn--primary" disabled={saving}>
-              {saving ? 'Enregistrement…' : editing ? 'Enregistrer' : 'Créer'}
+              {saving ? <><Spinner size="sm" /> Enregistrement…</> : editing ? 'Enregistrer' : 'Créer'}
             </button>
           </>
         }

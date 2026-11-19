@@ -36,11 +36,23 @@ class EtudiantController extends Controller
             $query->where('classe_id', $request->classe_id);
         }
 
-        if ($request->search) {
-            $search = $request->search;
-            $query->where(fn ($q) => $q->where('nom', 'like', "%{$search}%")
-                ->orWhere('prenom', 'like', "%{$search}%")
-                ->orWhere('email', 'like', "%{$search}%"));
+        // Recherche par nom, prénom, matricule ou e-mail (insensible à la casse, les espaces sont ignorés aux extrémités).
+        $recherche = trim((string) $request->query('search', ''));
+        if ($recherche !== '') {
+            $query->where(fn ($q) => $q->where('nom', 'like', "%{$recherche}%")
+                ->orWhere('prenom', 'like', "%{$recherche}%")
+                ->orWhere('matricule', 'like', "%{$recherche}%")
+                ->orWhere('email', 'like', "%{$recherche}%"));
+        }
+
+        // Statut : actif = inscrit pour l'année en cours de l'école ; inactif = pas d'inscription cette année.
+        $statut = $request->query('statut');
+        if (in_array($statut, ['actif', 'inactif'], true)) {
+            $annee = $request->user()->etablissement?->annee_scolaire;
+            $inscrit = fn ($q) => $q->where('statut', 'active')->when($annee, fn ($i) => $i->where('annee_scolaire', $annee));
+            $statut === 'actif'
+                ? $query->whereHas('inscriptions', $inscrit)
+                : $query->whereDoesntHave('inscriptions', $inscrit);
         }
 
         return response()->json($query->paginate(20));

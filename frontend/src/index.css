@@ -5936,3 +5936,34 @@ textarea.input {
   padding: 8px 12px;
   line-height: 1.35;
 }
+
+/* Logo de la plateforme */
+.logo-complet {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+.logo-complet-texte {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+.logo-complet-nom {
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.logo-complet-sous {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.login-signature {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+  opacity: 0.85;
+}

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Logo, { LogoMarque } from '../components/Logo'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { authApi } from '../api/endpoints'
@@ -97,7 +98,7 @@ export default function Login() {
           {etablissement?.logo_path ? (
             <img src={`/${etablissement.logo_path}`} alt="Logo" className="login-logo-img" />
           ) : (
-            <span className="login-logo" aria-hidden="true">{(etablissement?.nom || 'E').charAt(0).toUpperCase()}</span>
+            <span className="login-logo" aria-hidden="true"><LogoMarque taille={56} /></span>
           )}
           <h1>{etablissement?.nom || 'Espace scolaire'}</h1>
           <p>Connectez-vous pour accéder à votre espace de gestion.</p>
@@ -195,6 +196,7 @@ export default function Login() {
         )}
 
         <InstallerApp />
+        <div className="login-signature" aria-label="Plateforme EduGestion"><Logo taille={28} /></div>
         <p className="login-liens"><Link to="/cgu">Conditions générales d’utilisation</Link></p>
 
         {/* Identifiants de démonstration : affichés seulement en développement, jamais en production. */}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { LogoMarque } from './Logo'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useEtablissement } from '../context/EtablissementContext'
@@ -279,7 +280,7 @@ export default function AppLayout() {
           {etablissement.logo_path ? (
             <img src={`/${etablissement.logo_path}`} alt="" className="brand-logo-img" />
           ) : (
-            <span className="brand-logo" aria-hidden="true">{(etablissement.nom || 'E').charAt(0).toUpperCase()}</span>
+            <span className="brand-logo" aria-hidden="true"><LogoMarque taille={36} /></span>
           )}
           <div className="brand-texts">
             <span className="brand-text">{etablissement.nom}</span>
