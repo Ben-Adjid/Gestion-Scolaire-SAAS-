@@ -1,16 +1,20 @@
 {
+  "id": "/",
   "name": "Espace scolaire",
   "short_name": "École",
-  "description": "Suivi de la scolarité, notes, présences et échanges avec l’établissement.",
+  "description": "Gestion de la scolarité : élèves, appels, notes, bulletins, paiements et échanges avec l’établissement.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#F3F0E9",
-  "theme_color": "#1F5C4A",
+  "theme_color": "#1E3A8A",
   "lang": "fr",
+  "categories": ["education", "productivity"],
   "icons": [
-    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
-    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ]
 }

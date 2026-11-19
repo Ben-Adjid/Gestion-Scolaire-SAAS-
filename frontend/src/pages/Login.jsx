@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { authApi } from '../api/endpoints'
+import InstallerApp from '../components/InstallerApp'
 import { useEtablissement } from '../context/EtablissementContext'
 import Alert from '../components/Alert'
 import Spinner from '../components/Spinner'
@@ -193,6 +194,7 @@ export default function Login() {
         </form>
         )}
 
+        <InstallerApp />
         <p className="login-liens"><Link to="/cgu">Conditions générales d’utilisation</Link></p>
 
         {/* Identifiants de démonstration : affichés seulement en développement, jamais en production. */}
