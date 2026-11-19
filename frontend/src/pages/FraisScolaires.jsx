@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { classesApi, etudiantsApi, exportApi, fraisScolairesApi, telecharger } from '../api/endpoints'
 import { downloadRecuPdf } from '../utils/pdf'
+import { formatDate } from '../utils/format'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -39,8 +40,10 @@ export default function FraisScolaires() {
   const { user } = useAuth()
   const { etablissement } = useEtablissement()
   const canEdit = ['admin', 'gestionnaire', 'agent_comptable'].includes(user?.role)
-  const annee = etablissement.annee_scolaire || '2025-2026'
-  const [anneeAffichee, setAnneeAffichee] = useState(annee)
+  // Année choisie par l'utilisateur ; à défaut, l'année en cours de l'école (connue après le chargement de l'école).
+  const [anneeChoisie, setAnneeChoisie] = useState(null)
+  const anneeAffichee = anneeChoisie ?? etablissement.annee_scolaire ?? ''
+  const setAnneeAffichee = setAnneeChoisie
 
   const [items, setItems] = useState([])
   const [meta, setMeta] = useState(null)
@@ -58,7 +61,7 @@ export default function FraisScolaires() {
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState({ etudiant_id: '', annee_scolaire: annee, montant_total: '' })
+  const [form, setForm] = useState({ etudiant_id: '', annee_scolaire: anneeAffichee, montant_total: '' })
   const [formErrors, setFormErrors] = useState({})
   const [saving, setSaving] = useState(false)
 
@@ -150,7 +153,7 @@ export default function FraisScolaires() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ etudiant_id: '', annee_scolaire: annee, montant_total: '' })
+    setForm({ etudiant_id: '', annee_scolaire: anneeAffichee, montant_total: '' })
     setFormErrors({})
     setModalOpen(true)
   }
@@ -245,7 +248,7 @@ export default function FraisScolaires() {
     e.preventDefault()
     setSavingBulk(true)
     try {
-      const res = await fraisScolairesApi.bulkInit({ ...bulkForm, annee_scolaire: annee })
+      const res = await fraisScolairesApi.bulkInit({ ...bulkForm, annee_scolaire: anneeAffichee })
       toast.success(res.data.message)
       setBulkOpen(false)
       fetchData()
@@ -431,7 +434,7 @@ export default function FraisScolaires() {
           <ul className="top-list">
             {paiementsRecus.map((p) => (
               <li key={p.id} className="top-item">
-                <span className="top-name">{p.date_paiement} — {formatMontant(p.montant)} ({p.mode_paiement})</span>
+                <span className="top-name">{formatDate(p.date_paiement)} — {formatMontant(p.montant)} ({MODES.find((m) => m.value === p.mode_paiement)?.label || p.mode_paiement})</span>
                 <button type="button" className="btn btn--ghost btn--sm" onClick={() => telechargerRecu(p)}>Reçu</button>
               </li>
             ))}
@@ -544,7 +547,7 @@ export default function FraisScolaires() {
       >
         <form id="bulk-frais-form" onSubmit={handleBulkSubmit} noValidate>
           <p className="field-hint" style={{ marginBottom: 14 }}>
-            Crée automatiquement les frais de {annee} pour tous les élèves de la classe qui n'en ont pas encore.
+            Crée automatiquement les frais de {anneeAffichee} pour tous les élèves de la classe qui n'en ont pas encore.
           </p>
           <Field label="Classe" htmlFor="bulk-classe" required>
             <Select

@@ -124,7 +124,8 @@ export async function downloadElementPdf(element, filename) {
     },
   })
 
-  const imgData = canvas.toDataURL('image/png')
+  // JPEG haute qualité : un PNG pleine page pèse plusieurs Mo, le JPEG reste net à l'impression.
+  const imgData = canvas.toDataURL('image/jpeg', 0.92)
 
   const pdf = new jsPDF('p', 'mm', 'a4')
   const pageWidth = pdf.internal.pageSize.getWidth()
@@ -146,7 +147,7 @@ export async function downloadElementPdf(element, filename) {
   const x = (pageWidth - width) / 2
   const y = (pageHeight - height) / 2
 
-  pdf.addImage(imgData, 'PNG', x, y, width, height)
+  pdf.addImage(imgData, 'JPEG', x, y, width, height)
   pdf.save(filename)
 }
 
@@ -297,7 +298,9 @@ export async function downloadRecuPdf({ paiement, frais, eleve, etablissement, f
   const largeur = doc.internal.pageSize.getWidth()
   const [r, g, b] = couleurEcole()
   const monnaieEcole = etablissement.monnaie || 'FCFA'
-  const somme = (v) => `${Math.round(Number(v) || 0).toLocaleString('fr-FR')} ${monnaieEcole}`
+  // Espaces de milliers ordinaires : la police du PDF n'affiche pas les espaces fines de l'écran.
+  const somme = (v) => `${Math.round(Number(v) || 0).toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ')} ${monnaieEcole}`
+  const dateFr = (d) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || '')); return m ? `${m[3]}/${m[2]}/${m[1]}` : (d || '—') }
   const modes = { especes: 'Espèces', cheque: 'Chèque' }
 
   // Bandeau aux couleurs de l'école
@@ -318,7 +321,7 @@ export async function downloadRecuPdf({ paiement, frais, eleve, etablissement, f
   doc.text(`REC-${String(paiement.id).padStart(6, '0')}`, largeur - 14, 24, { align: 'right' })
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
-  doc.text(`Date : ${paiement.date_paiement}`, largeur - 14, 31, { align: 'right' })
+  doc.text(`Date : ${dateFr(paiement.date_paiement)}`, largeur - 14, 31, { align: 'right' })
 
   // Élève et frais
   doc.setTextColor(31, 42, 40)

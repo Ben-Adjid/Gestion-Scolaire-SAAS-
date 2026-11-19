@@ -113,7 +113,7 @@ export default function Login() {
             </Field>
             {codeEnvoye && (
               <>
-                <Alert>{infoTel}</Alert>
+                <Alert type="info">{infoTel}</Alert>
                 <Field label="Code à six chiffres" htmlFor="code-tel" required>
                   <Input id="code-tel" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={codeTel} onChange={(e) => setCodeTel(e.target.value)} placeholder="123456" autoFocus />
                 </Field>
@@ -122,7 +122,7 @@ export default function Login() {
             <button type="submit" className="btn btn--primary btn--block" disabled={submitting || (codeEnvoye ? codeTel.length !== 6 : !telephone.trim())}>
               {codeEnvoye ? 'Se connecter' : 'Recevoir le code par WhatsApp'}
             </button>
-            <p className="login-demo" style={{ marginTop: 12, textAlign: 'center' }}>
+            <p className="login-liens">
               <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setModeTel(false); setCodeEnvoye(false); setGlobalError(null) }}>Me connecter avec mon e-mail</button>
             </p>
           </form>
@@ -171,11 +171,11 @@ export default function Login() {
             </Field>
           )}
 
-          <p className="login-demo" style={{ marginTop: 12, textAlign: 'right' }}>
+          <p className="login-liens">
             <Link to="/mot-de-passe-oublie">Mot de passe oublié ?</Link>
           </p>
 
-          <p className="login-demo" style={{ marginTop: 12, textAlign: 'center' }}>
+          <p className="login-liens">
             <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setModeTel(true); setGlobalError(null) }}>Me connecter avec mon téléphone (WhatsApp)</button>
           </p>
 

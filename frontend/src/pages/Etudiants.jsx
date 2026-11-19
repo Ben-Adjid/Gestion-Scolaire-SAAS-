@@ -126,7 +126,7 @@ export default function Etudiants() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm(EMPTY_FORM)
+    setForm(etablissement?.annee_scolaire ? { ...EMPTY_FORM, annee_scolaire: etablissement.annee_scolaire } : EMPTY_FORM)
     setFormErrors({})
     setDoublons([])
     setParent(PARENT_VIDE)

@@ -142,7 +142,9 @@ export default function Inscriptions() {
     setMode(m)
     setEtape(1)
     setPendingDossierEtudiantId(null)
-    setForm(m === 'nouveau' ? EMPTY_NEW : EMPTY_OLD)
+    const anneeEcole = etablissement?.annee_scolaire
+    const base = m === 'nouveau' ? EMPTY_NEW : EMPTY_OLD
+    setForm(anneeEcole ? { ...base, annee_scolaire: anneeEcole } : base)
     setFormErrors({})
     setMatriculeSearch('')
     setLookupResult(null)

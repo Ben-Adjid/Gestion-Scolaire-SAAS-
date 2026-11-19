@@ -5846,3 +5846,21 @@ textarea.input {
   letter-spacing: 1px;
   color: var(--primary);
 }
+
+/* Information neutre (message d'attente, consigne) : ni erreur ni succès */
+.alert--info {
+  background: var(--primary-light);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+/* Liens secondaires de la page de connexion (sans le fond des identifiants de démonstration) */
+.login-liens {
+  margin: 12px 0 0;
+  text-align: center;
+  font-size: 14px;
+}
+.login-liens a {
+  color: var(--primary);
+  font-weight: 600;
+}

@@ -1,0 +1,5 @@
+
+# Artefacts des tests navigateur
+.playwright-mcp/
+*.png.tmp
+login*.png
