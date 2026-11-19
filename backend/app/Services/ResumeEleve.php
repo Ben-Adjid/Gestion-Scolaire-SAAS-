@@ -29,7 +29,7 @@ class ResumeEleve
             }
         }
 
-        $frais = \App\Models\FraisScolaire::where('etudiant_id', $etudiant->id)->with('paiements')->get();
+        $frais = \App\Models\FraisScolaire::where('etudiant_id', $etudiant->id)->with('paiements.agent:id,name')->get();
 
         return [
             'eleve' => $etudiant->only(['id', 'nom', 'prenom', 'matricule']),
@@ -71,6 +71,8 @@ class ResumeEleve
                     'montant' => (float) $p->montant,
                     'mode_paiement' => $p->mode_paiement,
                     'reference' => $p->reference,
+                    'enregistre_le' => $p->created_at?->toIso8601String(),
+                    'agent' => $p->agent?->name,
                 ])->all(),
             ]),
         ];

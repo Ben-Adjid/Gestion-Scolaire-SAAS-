@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { classesApi, etudiantsApi, exportApi, fraisScolairesApi, telecharger } from '../api/endpoints'
-import { downloadRecuPdf } from '../utils/pdf'
+import RecuApercu from '../components/RecuApercu'
 import { formatDate } from '../utils/format'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
@@ -95,20 +95,23 @@ export default function FraisScolaires() {
   }
 
   // Reçu au format PDF, généré aux couleurs de l'école (plus de fichier HTML).
-  const telechargerRecu = (paiement) => {
+  // Ouvre l'aperçu du reçu : téléchargement PDF et impression depuis la fenêtre.
+  const voirRecu = (paiement) => {
     if (!recusDe) return
-    try {
-      downloadRecuPdf({
-        paiement,
-        frais: recusDe,
-        eleve: { prenom: recusDe.etudiant?.prenom, nom: recusDe.etudiant?.nom, matricule: recusDe.etudiant?.matricule, classe: recusDe.etudiant?.classe?.nom },
-        etablissement: { ...etablissement, monnaie: etablissement?.pays_info?.monnaie },
-        filename: `recu-${String(paiement.id).padStart(6, '0')}.pdf`,
-      })
-    } catch (err) {
-      toast.error(err.message || 'Reçu impossible à générer.')
-    }
+    setApercuRecu({
+      paiement,
+      frais: recusDe,
+      eleve: {
+        prenom: recusDe.etudiant?.prenom,
+        nom: recusDe.etudiant?.nom,
+        matricule: recusDe.etudiant?.matricule,
+        classe: recusDe.etudiant?.classe?.nom,
+        niveau: recusDe.etudiant?.classe?.niveau,
+      },
+      etablissement: { ...etablissement, monnaie: etablissement?.pays_info?.monnaie },
+    })
   }
+  const [apercuRecu, setApercuRecu] = useState(null)
 
   const [deleting, setDeleting] = useState(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
@@ -435,7 +438,7 @@ export default function FraisScolaires() {
             {paiementsRecus.map((p) => (
               <li key={p.id} className="top-item">
                 <span className="top-name">{formatDate(p.date_paiement)} — {formatMontant(p.montant)} ({MODES.find((m) => m.value === p.mode_paiement)?.label || p.mode_paiement})</span>
-                <button type="button" className="btn btn--ghost btn--sm" onClick={() => telechargerRecu(p)}>Reçu</button>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => voirRecu(p)}>Voir le reçu</button>
               </li>
             ))}
           </ul>
@@ -575,6 +578,8 @@ export default function FraisScolaires() {
           </Field>
         </form>
       </Modal>
+
+      <RecuApercu recu={apercuRecu} onClose={() => setApercuRecu(null)} />
 
       <ConfirmDialog
         open={Boolean(deleting)}

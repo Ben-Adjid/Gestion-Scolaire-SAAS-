@@ -29,6 +29,8 @@ class Etablissement extends Model
         'ministere',
         'adresse',
         'telephone',
+        'email',
+        'ville',
         'responsable',
         'annee_scolaire',
         'prefixe_matricule',

@@ -19,6 +19,11 @@ class IdentiteEtablissement
         return [
             'nom' => $etablissement?->nom ?? 'Établissement',
             'devise' => $etablissement?->devise,
+            'adresse' => $etablissement?->adresse,
+            'ville' => $etablissement?->ville,
+            'pays' => $etablissement?->pays_info['nom'] ?? null,
+            'telephone' => $etablissement?->telephone,
+            'email' => $etablissement?->email,
             'coordonnees' => implode(' — ', array_filter([
                 $etablissement?->adresse,
                 $etablissement?->telephone ? 'Tél : '.$etablissement->telephone : null,

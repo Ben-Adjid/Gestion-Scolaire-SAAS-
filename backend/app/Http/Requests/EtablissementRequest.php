@@ -20,6 +20,8 @@ class EtablissementRequest extends FormRequest
             'ministere' => ['nullable', 'string', 'max:255'],
             'adresse' => ['nullable', 'string', 'max:255'],
             'telephone' => ['nullable', 'string', 'max:50'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'ville' => ['nullable', 'string', 'max:120'],
             'responsable' => ['nullable', 'string', 'max:255'],
             'annee_scolaire' => ['required', 'string', 'max:20'],
             'prefixe_matricule' => ['nullable', 'string', 'max:10'],

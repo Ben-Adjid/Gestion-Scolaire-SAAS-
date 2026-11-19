@@ -12,7 +12,7 @@ import { useEtablissement } from '../context/EtablissementContext'
 import { lienWhatsApp } from '../utils/whatsapp'
 import FilResume from '../components/FilResume'
 import { formatMontant } from '../utils/pays'
-import { downloadRecuPdf } from '../utils/pdf'
+import RecuApercu from '../components/RecuApercu'
 
 const ONGLETS = [
   { id: 'presences', label: 'Présences', icone: '' },
@@ -38,6 +38,7 @@ export default function EspaceParent() {
   const toast = useToast()
   const { user } = useAuth()
   const { etablissement } = useEtablissement()
+  const [apercuRecu, setApercuRecu] = useState(null)
   const [enfants, setEnfants] = useState([])
   const [enfantId, setEnfantId] = useState(null)
   const [resume, setResume] = useState(null)
@@ -317,21 +318,14 @@ export default function EspaceParent() {
                                         type="button"
                                         className="btn btn--ghost btn--sm"
                                         title={`Reçu du ${p.date_paiement}`}
-                                        onClick={() => {
-                                          try {
-                                            downloadRecuPdf({
-                                              paiement: { id: p.id, date_paiement: p.date_paiement, montant: p.montant, mode_paiement: p.mode_paiement, reference: p.reference },
-                                              frais: { libelle: f.libelle, annee_scolaire: f.annee_scolaire, montant_total: f.montant, montant_paye: f.paye, reste: f.reste },
-                                              eleve: { prenom: resume.eleve?.prenom, nom: resume.eleve?.nom, matricule: resume.eleve?.matricule, classe: resume.classe?.nom },
-                                              etablissement: { ...etablissement, monnaie: etablissement?.pays_info?.monnaie },
-                                              filename: `recu-${String(p.id).padStart(6, '0')}.pdf`,
-                                            })
-                                          } catch (err) {
-                                            toast.error('Le reçu n’a pas pu être généré. Réessayez.')
-                                          }
-                                        }}
+                                        onClick={() => setApercuRecu({
+                                          paiement: { id: p.id, date_paiement: p.date_paiement, montant: p.montant, mode_paiement: p.mode_paiement, reference: p.reference, enregistre_le: p.enregistre_le, agent: p.agent ? { name: p.agent } : null },
+                                          frais: { libelle: f.libelle, annee_scolaire: f.annee_scolaire, montant_total: f.montant, montant_paye: f.paye, reste: f.reste },
+                                          eleve: { prenom: resume.eleve?.prenom, nom: resume.eleve?.nom, matricule: resume.eleve?.matricule, classe: resume.classe?.nom, niveau: resume.classe?.niveau },
+                                          etablissement: { ...etablissement, monnaie: etablissement?.pays_info?.monnaie },
+                                        })}
                                       >
-                                        Reçu
+                                        Voir le reçu
                                       </button>
                                     ))}
                                   </td>
@@ -350,6 +344,8 @@ export default function EspaceParent() {
       )}
 
       <FilResume limite={4} titre="Actualités de l’école" />
+
+      <RecuApercu recu={apercuRecu} onClose={() => setApercuRecu(null)} />
 
       <Modal
         open={Boolean(demande)}

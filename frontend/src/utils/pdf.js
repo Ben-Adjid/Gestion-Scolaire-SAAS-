@@ -291,96 +291,266 @@ function couleurEcole() {
   return [31, 92, 74]
 }
 
-// Reçu de paiement au format PDF, aux couleurs et au nom de l'école.
+// Date française lisible : 19/11/2026.
+const dateFr = (d) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || ''))
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : (d || '—')
+}
+
+const MODES_REGLEMENT = {
+  especes: 'Espèces',
+  cheque: 'Chèque',
+  virement: 'Virement',
+  mobile_money: 'Mobile money',
+  carte: 'Carte bancaire',
+  en_ligne: 'Paiement en ligne',
+}
+
+// Montant lisible : espaces de milliers ordinaires (la police PDF n'affiche pas les espaces fines).
+const sommeFr = (valeur, monnaie) =>
+  `${Math.round(Number(valeur) || 0).toLocaleString('fr-FR').replace(/[  ]/g, ' ')} ${monnaie}`
+
+// Données du reçu, identiques pour le PDF et l'aperçu à l'écran.
+export function construireRecu({ paiement, frais, eleve = {}, etablissement = {} }) {
+  const monnaie = etablissement.monnaie || 'FCFA'
+  const annee = frais.annee_scolaire || etablissement.annee_scolaire || ''
+  const anneeRef = /^(\d{4})/.exec(annee)?.[1] || String(new Date().getFullYear())
+  const quand = paiement.enregistre_le || paiement.created_at
+  let dateHeure = dateFr(paiement.date_paiement)
+  if (quand) {
+    const d = new Date(quand)
+    if (!Number.isNaN(d.getTime())) {
+      const jour = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+      const heure = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+      dateHeure = `${jour} à ${heure}`
+    }
+  }
+  const reste = Math.max(0, Number(frais.reste) || 0)
+
+  return {
+    numero: `REC-${anneeRef}-${String(paiement.id).padStart(4, '0')}`,
+    dateHeure,
+    ecole: {
+      nom: etablissement.nom || '',
+      adresse: etablissement.adresse || '',
+      ville: etablissement.ville || '',
+      pays: etablissement.pays_info?.nom || '',
+      telephone: etablissement.telephone || '',
+      email: etablissement.email || '',
+      anneeScolaire: etablissement.annee_scolaire || annee || '',
+    },
+    eleve: {
+      nom: `${eleve.prenom ?? ''} ${eleve.nom ?? ''}`.trim() || '—',
+      matricule: eleve.matricule || '—',
+      classe: [eleve.classe, eleve.niveau ? getNiveauLabel(eleve.niveau) : ''].filter(Boolean).join(' • ') || '—',
+    },
+    frais: {
+      libelle: `${frais.libelle ?? ''}${annee ? ` (${annee})` : ''}`,
+      exigible: sommeFr(frais.montant_total, monnaie),
+      totalPaye: sommeFr(frais.montant_paye, monnaie),
+      reste: sommeFr(reste, monnaie),
+      soldé: reste <= 0,
+    },
+    montantEncaisse: sommeFr(paiement.montant, monnaie),
+    mode: MODES_REGLEMENT[paiement.mode_paiement] || paiement.mode_paiement || '—',
+    reference: paiement.reference || '',
+    agent: paiement.agent?.name || paiement.agent || '',
+  }
+}
+
+// Logo de l'école ; à défaut, le logo vectoriel de la plateforme (icône PWA).
+async function chargerLogo(cheminLogo) {
+  const sources = [cheminLogo ? `/${cheminLogo}` : null, '/icons/icon-512x512.png'].filter(Boolean)
+  for (const src of sources) {
+    try {
+      return await new Promise((resolve, reject) => {
+        const img = new Image()
+        img.onload = () => {
+          // Logo réduit (256 px max) sur fond blanc, en JPEG : le reçu reste léger (< 200 Ko).
+          const echelle = Math.min(1, 256 / Math.max(img.naturalWidth, img.naturalHeight))
+          const canevas = document.createElement('canvas')
+          canevas.width = Math.max(1, Math.round(img.naturalWidth * echelle))
+          canevas.height = Math.max(1, Math.round(img.naturalHeight * echelle))
+          const contexte = canevas.getContext('2d')
+          contexte.fillStyle = '#ffffff'
+          contexte.fillRect(0, 0, canevas.width, canevas.height)
+          contexte.drawImage(img, 0, 0, canevas.width, canevas.height)
+          resolve(canevas.toDataURL('image/jpeg', 0.9))
+        }
+        img.onerror = reject
+        img.src = src
+      })
+    } catch {
+      // Essai de la source suivante.
+    }
+  }
+  return null
+}
+
+// Reçu de paiement officiel (quittance de caisse), A4, aux couleurs de l'école.
 export async function downloadRecuPdf({ paiement, frais, eleve, etablissement, filename }) {
   const jsPDF = await chargerJsPDF()
+  const recu = construireRecu({ paiement, frais, eleve, etablissement })
   const doc = new jsPDF('p', 'mm', 'a4')
   const largeur = doc.internal.pageSize.getWidth()
+  const hauteur = doc.internal.pageSize.getHeight()
   const [r, g, b] = couleurEcole()
-  const monnaieEcole = etablissement.monnaie || 'FCFA'
-  // Espaces de milliers ordinaires : la police du PDF n'affiche pas les espaces fines de l'écran.
-  const somme = (v) => `${Math.round(Number(v) || 0).toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ')} ${monnaieEcole}`
-  const dateFr = (d) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || '')); return m ? `${m[3]}/${m[2]}/${m[1]}` : (d || '—') }
-  const modes = { especes: 'Espèces', cheque: 'Chèque' }
+  const teinte = [Math.round(r * 0.08 + 255 * 0.92), Math.round(g * 0.08 + 255 * 0.92), Math.round(b * 0.08 + 255 * 0.92)]
+  const marge = 16
+  const gris = [107, 114, 128]
+  const encre = [31, 42, 40]
 
-  // Bandeau aux couleurs de l'école
+  // Bandeau d'en-tête : logo, identité officielle, année scolaire.
   doc.setFillColor(r, g, b)
-  doc.rect(0, 0, largeur, 42, 'F')
+  doc.rect(0, 0, largeur, 50, 'F')
+  const logo = await chargerLogo(etablissement.logo_path)
+  let xNom = marge
+  if (logo) {
+    doc.setFillColor(255, 255, 255)
+    doc.roundedRect(marge, 11, 28, 28, 3, 3, 'F')
+    doc.addImage(logo, 'JPEG', marge + 2, 13, 24, 24)
+    xNom = marge + 34
+  }
   doc.setTextColor(255, 255, 255)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(16)
-  doc.text(etablissement.nom || '', 14, 16)
+  doc.text(recu.ecole.nom, xNom, 20)
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
-  const coordonnees = [etablissement.adresse, etablissement.telephone ? `Tél : ${etablissement.telephone}` : null].filter(Boolean).join(' — ')
-  if (coordonnees) doc.text(coordonnees, 14, 23)
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
-  doc.text('REÇU DE PAIEMENT', largeur - 14, 16, { align: 'right' })
-  doc.setFontSize(13)
-  doc.text(`REC-${String(paiement.id).padStart(6, '0')}`, largeur - 14, 24, { align: 'right' })
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(9)
-  doc.text(`Date : ${dateFr(paiement.date_paiement)}`, largeur - 14, 31, { align: 'right' })
-
-  // Élève et frais
-  doc.setTextColor(31, 42, 40)
-  doc.setFontSize(10)
-  let y = 56
-  const ligne = (libelle, valeur, gras = false) => {
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(107, 122, 118)
-    doc.text(libelle, 14, y)
-    doc.setTextColor(31, 42, 40)
-    doc.setFont('helvetica', gras ? 'bold' : 'normal')
-    doc.text(String(valeur ?? '—'), 70, y)
-    y += 8
-  }
-  ligne('Élève', `${eleve.prenom} ${eleve.nom}`, true)
-  ligne('Matricule', eleve.matricule)
-  ligne('Classe', eleve.classe)
-  ligne('Frais', `${frais.libelle} (${frais.annee_scolaire})`)
-  ligne('Mode de paiement', modes[paiement.mode_paiement] || paiement.mode_paiement)
-  if (paiement.reference) ligne('Référence', paiement.reference)
-
-  // Montant encaissé
-  y += 4
-  doc.setFillColor(r, g, b)
-  doc.setDrawColor(r, g, b)
-  doc.roundedRect(14, y, largeur - 28, 20, 3, 3, 'S')
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(12)
-  doc.setTextColor(r, g, b)
-  doc.text('Montant encaissé', 20, y + 13)
-  doc.setFontSize(16)
-  doc.text(somme(paiement.montant), largeur - 20, y + 13, { align: 'right' })
-  y += 32
-
-  // Situation après ce paiement
-  doc.setTextColor(31, 42, 40)
-  doc.setFontSize(10)
-  ligne('Total des frais', somme(frais.montant_total))
-  ligne('Total encaissé', somme(frais.montant_paye))
-  ligne('Reste à payer', somme(frais.reste), true)
-  if (Number(frais.reste) <= 0) {
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(22, 163, 74)
-    doc.setFontSize(14)
-    doc.text('SOLDÉ', 14, y + 4)
-  }
-
-  // Signatures
-  y = 230
-  doc.setDrawColor(180, 180, 180)
-  doc.setTextColor(107, 122, 118)
-  doc.setFontSize(9)
-  doc.line(14, y, 90, y)
-  doc.text('Signature du caissier', 14, y + 5)
-  doc.line(largeur - 90, y, largeur - 14, y)
-  doc.text('Cachet de l’établissement', largeur - 90, y + 5)
+  const lieu = [recu.ecole.adresse, recu.ecole.ville, recu.ecole.pays].filter(Boolean).join(' — ')
+  const contact = [recu.ecole.telephone ? `Tél : ${recu.ecole.telephone}` : '', recu.ecole.email].filter(Boolean).join(' · ')
+  if (lieu) doc.text(lieu, xNom, 28)
+  if (contact) doc.text(contact, xNom, 34)
 
   doc.setFontSize(8)
-  doc.text(`Édité le ${new Date().toLocaleString('fr-FR')} — ${etablissement.nom || ''}`, largeur / 2, 285, { align: 'center' })
+  doc.text('ANNÉE SCOLAIRE', largeur - marge, 19, { align: 'right' })
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(13)
+  doc.text(recu.ecole.anneeScolaire || '—', largeur - marge, 27, { align: 'right' })
+
+  // Titre solennel et références.
+  doc.setTextColor(r, g, b)
+  doc.setFontSize(14)
+  doc.text('REÇU DE PAIEMENT / QUITTANCE DE CAISSE', largeur / 2, 64, { align: 'center' })
+  doc.setDrawColor(r, g, b)
+  doc.setLineWidth(0.6)
+  doc.line(largeur / 2 - 55, 67, largeur / 2 + 55, 67)
+
+  doc.setTextColor(...encre)
+  doc.setFontSize(11)
+  doc.text(`N° de reçu : ${recu.numero}`, marge, 78)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(10)
+  doc.text(`Date de l’opération : ${recu.dateHeure}`, largeur - marge, 78, { align: 'right' })
+
+  // Identification de l'élève.
+  doc.setFillColor(...teinte)
+  doc.roundedRect(marge, 84, largeur - marge * 2, 30, 3, 3, 'F')
+  const champ = (libelle, valeur, x, y) => {
+    doc.setTextColor(...gris)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.text(libelle.toUpperCase(), x, y)
+    doc.setTextColor(...encre)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(11)
+    doc.text(String(valeur), x, y + 6)
+  }
+  champ('Élève', recu.eleve.nom, marge + 6, 93)
+  champ('Matricule', recu.eleve.matricule, marge + 6, 105)
+  champ('Classe et niveau', recu.eleve.classe, largeur / 2 + 6, 93)
+
+  // Tableau financier.
+  const yTable = 124
+  const colLibelle = marge + 4
+  const colExigible = 112
+  const colEncaisse = 146
+  const colMode = largeur - marge - 4
+  doc.setFillColor(r, g, b)
+  doc.rect(marge, yTable, largeur - marge * 2, 9, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8.5)
+  doc.text('Libellé des frais', colLibelle, yTable + 6)
+  doc.text('Montant exigible', colExigible, yTable + 6, { align: 'right' })
+  doc.text('Encaissé ce jour', colEncaisse, yTable + 6, { align: 'right' })
+  doc.text('Mode de règlement', colMode, yTable + 6, { align: 'right' })
+
+  doc.setTextColor(...encre)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(10)
+  const yLigne = yTable + 17
+  doc.text(recu.frais.libelle, colLibelle, yLigne)
+  doc.text(recu.frais.exigible, colExigible, yLigne, { align: 'right' })
+  doc.setFont('helvetica', 'bold')
+  doc.text(recu.montantEncaisse, colEncaisse, yLigne, { align: 'right' })
+  doc.setFont('helvetica', 'normal')
+  doc.text(recu.mode, colMode, yLigne, { align: 'right' })
+  doc.setDrawColor(220, 220, 220)
+  doc.setLineWidth(0.2)
+  doc.line(marge, yLigne + 5, largeur - marge, yLigne + 5)
+
+  // Situation après ce paiement.
+  doc.setFontSize(10)
+  doc.text('Total déjà encaissé', colLibelle, yLigne + 14)
+  doc.text(recu.frais.totalPaye, colLibelle + 110, yLigne + 14, { align: 'right' })
+  doc.text('Reste à payer', colLibelle, yLigne + 22)
+  doc.text(recu.frais.reste, colLibelle + 110, yLigne + 22, { align: 'right' })
+
+  // Montant encaissé, en évidence.
+  const yMontant = yLigne + 34
+  doc.setFillColor(...teinte)
+  doc.setDrawColor(r, g, b)
+  doc.setLineWidth(0.6)
+  doc.roundedRect(marge, yMontant, largeur - marge * 2, 20, 3, 3, 'FD')
+  doc.setTextColor(r, g, b)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(11)
+  doc.text('MONTANT ENCAISSÉ', marge + 6, yMontant + 12.5)
+  doc.setFontSize(17)
+  doc.text(recu.montantEncaisse, largeur - marge - 6, yMontant + 13, { align: 'right' })
+
+  // Badge de solde : vert si soldé, ambre sinon.
+  const yBadge = yMontant + 28
+  const libelleBadge = recu.frais.soldé ? 'SOLDÉ' : `RESTE À PAYER : ${recu.frais.reste}`
+  doc.setFontSize(11)
+  const largeurBadge = doc.getTextWidth(libelleBadge) + 14
+  if (recu.frais.soldé) doc.setFillColor(22, 163, 74)
+  else doc.setFillColor(217, 119, 6)
+  doc.roundedRect(marge, yBadge, largeurBadge, 9, 2, 2, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.text(libelleBadge, marge + 7, yBadge + 6.2)
+
+  // Agent de caisse et cadre cachet / signature.
+  doc.setTextColor(...encre)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
+  doc.text(`Encaissé par : ${recu.agent || '—'}`, marge, yBadge + 22)
+  if (recu.reference) doc.text(`Référence : ${recu.reference}`, marge, yBadge + 28)
+
+  doc.setDrawColor(...gris)
+  doc.setLineWidth(0.3)
+  doc.roundedRect(largeur - marge - 70, yBadge + 6, 70, 36, 2, 2, 'S')
+  doc.setFontSize(8)
+  doc.setTextColor(...gris)
+  doc.text('Pour acquit', largeur - marge - 66, yBadge + 11)
+  doc.text('Cachet & signature de l’établissement', largeur - marge - 35, yBadge + 39, { align: 'center' })
+
+  // Mention légale et pied de page.
+  doc.setDrawColor(220, 220, 220)
+  doc.line(marge, hauteur - 26, largeur - marge, hauteur - 26)
+  doc.setFont('helvetica', 'italic')
+  doc.setFontSize(8)
+  doc.setTextColor(...gris)
+  doc.text(
+    'Ce reçu est délivré à titre de justificatif de paiement officiel. Aucun duplicata ne sera fourni sans motif valable.',
+    largeur / 2,
+    hauteur - 19,
+    { align: 'center' }
+  )
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7.5)
+  doc.text(`Édité le ${new Date().toLocaleDateString('fr-FR')} — ${recu.ecole.nom}`, largeur / 2, hauteur - 13, { align: 'center' })
 
   doc.save(filename)
 }

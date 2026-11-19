@@ -12,7 +12,7 @@ class Paiement extends Model
 
     protected $fillable = [
         'frais_scolaire_id', 'etudiant_id', 'montant', 'date_paiement',
-        'mode_paiement', 'reference', 'statut', 'notes', 'recu_url', 'etablissement_id'
+        'mode_paiement', 'reference', 'statut', 'notes', 'recu_url', 'etablissement_id', 'enregistre_par'
     ];
 
     protected $casts = [
@@ -28,5 +28,11 @@ class Paiement extends Model
     public function etudiant(): BelongsTo
     {
         return $this->belongsTo(Etudiant::class);
+    }
+
+    /** Agent de caisse ayant enregistré l'encaissement (absent sur les anciens paiements). */
+    public function agent(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'enregistre_par');
     }
 }

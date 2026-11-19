@@ -24,7 +24,7 @@ class FraisScolaireController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $query = FraisScolaire::query()->with(['etudiant:id,nom,prenom,matricule,classe_id', 'etudiant.classe:id,nom']);
+        $query = FraisScolaire::query()->with(['etudiant:id,nom,prenom,matricule,classe_id', 'etudiant.classe:id,nom,niveau']);
 
         if ($request->etudiant_id) {
             $query->where('etudiant_id', $request->etudiant_id);
@@ -79,7 +79,11 @@ class FraisScolaireController extends Controller
 
     public function show(FraisScolaire $frais): JsonResponse
     {
-        return response()->json($frais->load(['etudiant:id,nom,prenom,matricule', 'paiements']));
+        return response()->json($frais->load([
+            'etudiant:id,nom,prenom,matricule,classe_id',
+            'etudiant.classe:id,nom,niveau',
+            'paiements.agent:id,name',
+        ]));
     }
 
     public function update(Request $request, FraisScolaire $frais): JsonResponse
@@ -148,7 +152,7 @@ class FraisScolaireController extends Controller
 
     public function paiements(FraisScolaire $frais): JsonResponse
     {
-        return response()->json($frais->paiements()->orderByDesc('date_paiement')->get());
+        return response()->json($frais->paiements()->with('agent:id,name')->orderByDesc('date_paiement')->get());
     }
 
     /** Suppression : impossible dès qu'un paiement a été encaissé (on garde la trace comptable). */
@@ -193,6 +197,7 @@ class FraisScolaireController extends Controller
             'montant' => $validated['montant'],
             'date_paiement' => $validated['date_paiement'],
             'mode_paiement' => $validated['mode'],
+            'enregistre_par' => $request->user()->id,
             'reference' => $validated['reference'] ?? null,
             'statut' => 'completed',
         ]);
