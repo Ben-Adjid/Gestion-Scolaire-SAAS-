@@ -21,6 +21,11 @@ class PlanDemoSeeder extends Seeder
 {
     public function run(): void
     {
+        if (app()->environment('production')) {
+            $this->command?->error('Données de démonstration refusées en production : utilisez php artisan db:seed --class=ProductionSeeder.');
+            return;
+        }
+
         foreach (array_keys(config('plans.plans')) as $plan) {
             $etablissement = Etablissement::firstOrCreate(
                 ['nom' => "Lycée démo {$plan}"],

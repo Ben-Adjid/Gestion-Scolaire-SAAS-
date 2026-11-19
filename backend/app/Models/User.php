@@ -31,6 +31,7 @@ class User extends Authenticatable
         'affectation',
         'telephone',
         'etablissement_id',
+        'recevoir_recu_email',
     ];
 
     /**
@@ -52,6 +53,7 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'preferences_notifications' => 'array',
         'cgu_acceptees_le' => 'datetime',
+        'recevoir_recu_email' => 'boolean',
     ];
 
     /** Événements et canaux qu'un parent peut choisir de recevoir (tout est activé par défaut). */

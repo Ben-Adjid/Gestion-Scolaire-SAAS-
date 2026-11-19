@@ -46,6 +46,11 @@ class DatabaseSeeder extends Seeder
 
     public function run()
     {
+        if (app()->environment('production')) {
+            $this->command?->error('Données de démonstration refusées en production : utilisez php artisan db:seed --class=ProductionSeeder.');
+            return;
+        }
+
         Etablissement::updateOrCreate(
             ['nom' => 'Lycée Ibnou Cina'],
             [

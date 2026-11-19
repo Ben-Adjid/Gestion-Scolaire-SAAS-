@@ -1,0 +1,28 @@
+# Worker de file d'attente (e-mails, reçus) — à installer sur le serveur Ubuntu.
+#
+# Installation (à adapter : chemin du projet, utilisateur système) :
+#   sudo cp deploy/laravel-worker.service /etc/systemd/system/laravel-worker.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now laravel-worker
+#   sudo systemctl status laravel-worker
+#
+# Après chaque déploiement, le worker est relancé par « php artisan queue:restart » (deploy.sh).
+
+[Unit]
+Description=Worker de file d'attente de la plateforme scolaire
+After=network-online.target mysql.service
+Wants=network-online.target
+
+[Service]
+User=www-data
+Group=www-data
+Restart=always
+RestartSec=5
+# Nombre de secondes de réflexion entre deux contrôles de la file, nombre de tentatives par tâche.
+ExecStart=/usr/bin/php /var/www/edugestion/backend/artisan queue:work --sleep=3 --tries=3 --max-time=3600
+WorkingDirectory=/var/www/edugestion/backend
+StandardOutput=append:/var/www/edugestion/backend/storage/logs/worker.log
+StandardError=append:/var/www/edugestion/backend/storage/logs/worker.log
+
+[Install]
+WantedBy=multi-user.target

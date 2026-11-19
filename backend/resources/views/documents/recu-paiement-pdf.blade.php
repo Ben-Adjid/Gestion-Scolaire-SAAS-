@@ -56,6 +56,8 @@
         <td style="padding: 10px 12px; width: 40%;">
             <div class="petit">Élève</div>
             <div class="gras" style="font-size: 11px; margin-top: 3px;">{{ $r['eleve']['nom'] }}</div>
+            <div class="petit" style="margin-top: 8px;">Payeur</div>
+            <div class="gras" style="font-size: 11px; margin-top: 3px;">{{ $r['payeur'] }}</div>
             <div class="petit" style="margin-top: 8px;">Matricule</div>
             <div class="gras" style="font-size: 11px; margin-top: 3px;">{{ $r['eleve']['matricule'] }}</div>
         </td>

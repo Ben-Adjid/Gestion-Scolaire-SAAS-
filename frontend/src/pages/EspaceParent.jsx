@@ -36,6 +36,22 @@ function moyenneDesNotes(notes) {
 
 export default function EspaceParent() {
   const toast = useToast()
+  // Préférence : recevoir les reçus de paiement par e-mail (activé par défaut).
+  const [recevoirRecu, setRecevoirRecu] = useState(user?.recevoir_recu_email !== false)
+  const [enregistrementRecu, setEnregistrementRecu] = useState(false)
+
+  const changerRecuEmail = async (valeur) => {
+    setEnregistrementRecu(true)
+    try {
+      const res = await espaceParentApi.recuEmail(valeur)
+      setRecevoirRecu(res.data.recevoir_recu_email)
+      toast.success(res.data.message)
+    } catch (err) {
+      toast.error(err.message || 'Préférence non enregistrée. Réessayez.')
+    } finally {
+      setEnregistrementRecu(false)
+    }
+  }
   const { user } = useAuth()
   const { etablissement } = useEtablissement()
   const [apercuRecu, setApercuRecu] = useState(null)
@@ -128,6 +144,16 @@ export default function EspaceParent() {
       </header>
 
       {erreur && <Alert>{erreur}</Alert>}
+
+      <section className="card" style={{ marginBottom: 16 }}>
+        <label style={{ display: 'flex', gap: 10, alignItems: 'center', cursor: 'pointer' }}>
+          <input type="checkbox" checked={recevoirRecu} disabled={enregistrementRecu} onChange={(e) => changerRecuEmail(e.target.checked)} />
+          <span>
+            <strong>Recevoir les reçus de paiement par e-mail</strong>
+            <br /><span className="muted">Chaque encaissement vous envoie le reçu officiel au format PDF.</span>
+          </span>
+        </label>
+      </section>
 
       {enfants.length === 0 ? (
         <EmptyState

@@ -67,6 +67,7 @@ class RecuPaiement
             'montantEncaisse' => self::somme($paiement->montant, $monnaie),
             'mode' => self::MODES[$paiement->mode_paiement] ?? ucfirst((string) $paiement->mode_paiement),
             'reference' => $paiement->reference ?? '',
+            'payeur' => $paiement->payeur_affiche ?? '—',
             'agent' => $paiement->agent?->name ?? '',
         ];
     }

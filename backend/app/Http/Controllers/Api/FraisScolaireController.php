@@ -177,9 +177,11 @@ class FraisScolaireController extends Controller
      */
     private function envoyerRecu(Paiement $paiement): void
     {
+        // Seuls les tuteurs qui ont une adresse e-mail et n'ont pas désactivé l'envoi.
         $destinataires = $paiement->etudiant?->parents()
             ->whereNotNull('email')
             ->where('email', '!=', '')
+            ->where('recevoir_recu_email', true)
             ->pluck('email')
             ->unique()
             ->values()
@@ -190,9 +192,14 @@ class FraisScolaireController extends Controller
         }
 
         try {
-            \Illuminate\Support\Facades\Mail::to($destinataires)->send(new \App\Mail\PaymentReceiptMail($paiement));
+            // Mise en file d'attente : l'envoi (et le PDF) se fait hors de la requête, par le worker.
+            \Illuminate\Support\Facades\Mail::to($destinataires)->queue(new \App\Mail\PaymentReceiptMail($paiement));
         } catch (\Throwable $e) {
-            report($e);
+            // Un problème de file ou de messagerie ne doit jamais annuler un encaissement déjà enregistré.
+            \Illuminate\Support\Facades\Log::error('Reçu non mis en file d’attente : l’encaissement reste valide.', [
+                'paiement_id' => $paiement->id,
+                'erreur' => $e->getMessage(),
+            ]);
         }
     }
 
@@ -200,6 +207,7 @@ class FraisScolaireController extends Controller
     {
         $validated = $request->validate([
             'montant' => 'required|numeric|min:0.01',
+            'payeur_nom' => 'nullable|string|max:120',
             'date_paiement' => 'required|date',
             // Paiements au guichet uniquement : espèces ou chèque.
             'mode' => 'required|in:especes,cheque',
@@ -223,6 +231,7 @@ class FraisScolaireController extends Controller
             'date_paiement' => $validated['date_paiement'],
             'mode_paiement' => $validated['mode'],
             'enregistre_par' => $request->user()->id,
+            'payeur_nom' => filled($validated['payeur_nom'] ?? null) ? trim($validated['payeur_nom']) : null,
             'reference' => $validated['reference'] ?? null,
             'statut' => 'completed',
         ]);

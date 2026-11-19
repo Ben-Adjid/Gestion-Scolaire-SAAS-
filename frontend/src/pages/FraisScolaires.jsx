@@ -70,6 +70,7 @@ export default function FraisScolaires() {
     montant: '',
     date_paiement: new Date().toISOString().slice(0, 10),
     mode: 'especes',
+    payeur_nom: '',
   })
   const [savingPaiement, setSavingPaiement] = useState(false)
   const [recusDe, setRecusDe] = useState(null)
@@ -206,6 +207,7 @@ export default function FraisScolaires() {
       montant: item.reste > 0 ? item.reste : '',
       date_paiement: new Date().toISOString().slice(0, 10),
       mode: 'especes',
+      payeur_nom: '',
     })
   }
 
@@ -507,6 +509,15 @@ export default function FraisScolaires() {
               name="montant"
               value={paiementForm.montant}
               onChange={(e) => setPaiementForm((prev) => ({ ...prev, montant: e.target.value }))}
+            />
+          </Field>
+          <Field label="Payeur (facultatif)" htmlFor="paiement-payeur" hint="Laissez vide : le nom du tuteur de l’élève apparaît sur le reçu.">
+            <Input
+              id="paiement-payeur"
+              name="payeur_nom"
+              maxLength={120}
+              value={paiementForm.payeur_nom}
+              onChange={(e) => setPaiementForm((prev) => ({ ...prev, payeur_nom: e.target.value }))}
             />
           </Field>
           <div className="form-grid">

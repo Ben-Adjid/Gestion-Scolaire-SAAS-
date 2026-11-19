@@ -257,6 +257,9 @@ Route::middleware(['auth:sanctum', 'subscription', 'enforce_tenant', 'reserve_pa
     Route::get('/emploi-du-temps', [EmploiDuTempsController::class, 'index']);
     Route::apiResource('creneaux', CreneauController::class)->except(['show'])->parameters(['creneaux' => 'creneau']);
 
+    // Le parent choisit de recevoir ou non ses reçus de paiement par e-mail.
+    Route::put('/parent/recu-email', [\App\Http\Controllers\Api\PreferenceRecuController::class, 'enregistrer'])->middleware('role:parent');
+
     Route::prefix('parent')->middleware('plan:espace_parent')->group(function () {
         Route::get('/enfants', [ParentController::class, 'enfants']);
         Route::get('/enfants/{etudiant}/resume', [ParentController::class, 'resume']);

@@ -339,6 +339,7 @@ export function construireRecu({ paiement, frais, eleve = {}, etablissement = {}
       email: etablissement.email || '',
       anneeScolaire: etablissement.annee_scolaire || annee || '',
     },
+    payeur: paiement.payeur_affiche || '—',
     eleve: {
       nom: `${eleve.prenom ?? ''} ${eleve.nom ?? ''}`.trim() || '—',
       matricule: eleve.matricule || '—',
@@ -459,6 +460,7 @@ export async function downloadRecuPdf({ paiement, frais, eleve, etablissement, f
   champ('Élève', recu.eleve.nom, marge + 6, 93)
   champ('Matricule', recu.eleve.matricule, marge + 6, 105)
   champ('Classe et niveau', recu.eleve.classe, largeur / 2 + 6, 93)
+  champ('Payeur', recu.payeur, largeur / 2 + 6, 105)
 
   // Tableau financier.
   const yTable = 124

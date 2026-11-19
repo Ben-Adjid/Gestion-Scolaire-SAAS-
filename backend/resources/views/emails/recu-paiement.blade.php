@@ -19,6 +19,7 @@
                             Nous confirmons l’encaissement suivant pour <strong>{{ $d['eleve']['nom'] }}</strong> ({{ $d['eleve']['classe'] }}).
                         </p>
                         <table role="presentation" width="100%" cellpadding="8" cellspacing="0" style="font-size:14px; background: {{ $d['ecole']['teinte'] }}; border-radius:8px;">
+                            <tr><td>Payeur</td><td align="right">{{ $d['payeur'] }}</td></tr>
                             <tr><td>Frais</td><td align="right"><strong>{{ $d['frais']['libelle'] }}</strong></td></tr>
                             <tr><td>Montant encaissé</td><td align="right"><strong style="color: {{ $d['ecole']['couleur'] }};">{{ $d['montantEncaisse'] }}</strong></td></tr>
                             <tr><td>Mode de règlement</td><td align="right">{{ $d['mode'] }}</td></tr>

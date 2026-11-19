@@ -58,7 +58,7 @@ class RecuEmailTest extends TestCase
 
         $this->encaisser($frais)->assertCreated();
 
-        Mail::assertSent(PaymentReceiptMail::class, fn ($mail) => $mail->hasTo('tuteur.idriss@exemple.test'));
+        Mail::assertQueued(PaymentReceiptMail::class, fn ($mail) => $mail->hasTo('tuteur.idriss@exemple.test'));
     }
 
     public function test_sans_adresse_du_tuteur_aucun_e_mail_n_est_envoye_et_l_encaissement_reussit(): void
@@ -68,7 +68,7 @@ class RecuEmailTest extends TestCase
 
         $this->encaisser($frais)->assertCreated();
 
-        Mail::assertNothingSent();
+        Mail::assertNothingQueued();
     }
 
     public function test_le_pdf_du_recu_est_valide_et_leger(): void
@@ -85,5 +85,26 @@ class RecuEmailTest extends TestCase
         $this->assertSame('REC-2026-'.str_pad((string) $paiement->id, 4, '0', STR_PAD_LEFT), $donnees['numero']);
         $this->assertSame('Terminale A • Lycée', $donnees['eleve']['classe']);
         $this->assertSame('60 000 FCFA', $donnees['frais']['reste']);
+    }
+
+    public function test_un_tuteur_qui_refuse_le_recu_par_e_mail_ne_le_recoit_pas(): void
+    {
+        Mail::fake();
+        [$eleve, $frais] = $this->eleveAvecFrais('tuteur.refus@exemple.test');
+        $eleve->parents()->first()->update(['recevoir_recu_email' => false]);
+
+        $this->encaisser($frais)->assertCreated();
+
+        Mail::assertNothingQueued();
+    }
+
+    public function test_un_echec_de_file_d_attente_ne_fait_pas_echouer_l_encaissement(): void
+    {
+        [, $frais] = $this->eleveAvecFrais('tuteur.panne@exemple.test');
+        Mail::shouldReceive('to')->andThrow(new \RuntimeException('File indisponible'));
+
+        $this->encaisser($frais)->assertCreated();
+
+        $this->assertDatabaseHas('paiements', ['frais_scolaire_id' => $frais->id, 'montant' => 40000]);
     }
 }

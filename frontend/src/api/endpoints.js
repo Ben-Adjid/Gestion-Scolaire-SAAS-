@@ -215,6 +215,8 @@ export function telecharger(blob, nomFichier) {
 }
 
 export const espaceParentApi = {
+  // Le parent choisit de recevoir ou non ses reçus de paiement par e-mail.
+  recuEmail: (recevoir) => client.put('/parent/recu-email', { recevoir }),
   enfants: () => client.get('/parent/enfants'),
   resume: (id) => client.get(`/parent/enfants/${id}/resume`),
   justifier: (etudiantId, absenceId, motif) =>

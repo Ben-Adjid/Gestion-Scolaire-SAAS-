@@ -70,6 +70,7 @@ export default function RecuApercu({ recu, onClose }) {
           <div><span>Élève</span><strong>{r.eleve.nom}</strong></div>
           <div><span>Matricule</span><strong>{r.eleve.matricule}</strong></div>
           <div><span>Classe et niveau</span><strong>{r.eleve.classe}</strong></div>
+          <div><span>Payeur</span><strong>{r.payeur}</strong></div>
         </div>
 
         <div className="recu-tableau-wrap">
