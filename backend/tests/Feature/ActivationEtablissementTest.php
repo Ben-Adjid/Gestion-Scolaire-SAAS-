@@ -61,7 +61,7 @@ class ActivationEtablissementTest extends TestCase
         $jeton = $this->jetonEnvoye();
 
         $this->postJson('/api/mot-de-passe/activer', [
-            'email' => 'moussa@nord.test', 'token' => $jeton, 'password' => 'MonChoix2026', 'password_confirmation' => 'MonChoix2026',
+            'email' => 'moussa@nord.test', 'token' => $jeton, 'password' => 'MonChoix2026', 'password_confirmation' => 'MonChoix2026', 'accepte_cgu' => true,
         ])->assertOk();
 
         $this->postJson('/api/login', ['email' => 'moussa@nord.test', 'password' => 'MonChoix2026'])->assertOk()->assertJsonStructure(['token']);
@@ -121,5 +121,37 @@ class ActivationEtablissementTest extends TestCase
         ])->assertCreated();
 
         $this->postJson('/api/login', ['email' => 'chef@directe.test', 'password' => 'secret123'])->assertOk();
+    }
+
+    public function test_activation_refusee_sans_acceptation_des_cgu(): void
+    {
+        $this->postJson('/api/super-admin/etablissements', [
+            'nom' => 'École CGU', 'plan' => 'standard', 'admin_name' => 'Sali', 'admin_email' => 'sali@cgu.test',
+        ])->assertCreated();
+        $jeton = $this->jetonEnvoye();
+
+        $this->postJson('/api/mot-de-passe/activer', [
+            'email' => 'sali@cgu.test', 'token' => $jeton, 'password' => 'MonChoix2026', 'password_confirmation' => 'MonChoix2026',
+        ])->assertStatus(422)->assertJsonValidationErrors('accepte_cgu');
+
+        $this->postJson('/api/mot-de-passe/activer', [
+            'email' => 'sali@cgu.test', 'token' => $jeton, 'password' => 'MonChoix2026', 'password_confirmation' => 'MonChoix2026', 'accepte_cgu' => false,
+        ])->assertStatus(422);
+    }
+
+    public function test_acceptation_des_cgu_est_tracee_avec_sa_version(): void
+    {
+        $this->postJson('/api/super-admin/etablissements', [
+            'nom' => 'École Trace', 'plan' => 'standard', 'admin_name' => 'Ousmane', 'admin_email' => 'ousmane@trace.test',
+        ])->assertCreated();
+        $jeton = $this->jetonEnvoye();
+
+        $this->postJson('/api/mot-de-passe/activer', [
+            'email' => 'ousmane@trace.test', 'token' => $jeton, 'password' => 'MonChoix2026', 'password_confirmation' => 'MonChoix2026', 'accepte_cgu' => true,
+        ])->assertOk();
+
+        $admin = User::withoutGlobalScopes()->where('email', 'ousmane@trace.test')->firstOrFail();
+        $this->assertSame(config('cgu.version'), $admin->cgu_version);
+        $this->assertNotNull($admin->cgu_acceptees_le);
     }
 }

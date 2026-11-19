@@ -51,6 +51,9 @@ class MotDePasseController extends Controller
             'email' => 'required|email',
             'token' => 'required|string',
             'password' => ['required', 'confirmed', Password::min(8)],
+            'accepte_cgu' => ['accepted'],
+        ], [
+            'accepte_cgu.accepted' => 'Vous devez accepter les conditions générales d’utilisation pour activer votre espace.',
         ]);
 
         $cle = 'activation:'.$donnees['email'];
@@ -68,6 +71,8 @@ class MotDePasseController extends Controller
             'password' => Hash::make($donnees['password']),
             'doit_changer_mot_de_passe' => false,
             'email_verified_at' => now(),
+            'cgu_version' => config('cgu.version'),
+            'cgu_acceptees_le' => now(),
         ])->save();
         $compte->tokens()->delete();
         DB::table('password_reset_tokens')->where('email', $cle)->delete();

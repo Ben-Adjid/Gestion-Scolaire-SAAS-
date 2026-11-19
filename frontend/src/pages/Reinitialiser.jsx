@@ -13,6 +13,7 @@ export default function Reinitialiser() {
   const [envoi, setEnvoi] = useState(false)
   const [succes, setSucces] = useState(null)
   const [erreur, setErreur] = useState(null)
+  const [accepteCgu, setAccepteCgu] = useState(false)
 
   const token = params.get('token') || ''
   const email = params.get('email') || ''
@@ -27,6 +28,7 @@ export default function Reinitialiser() {
     try {
       const envoyer = activation ? motDePasseApi.activer : motDePasseApi.reinitialiser
       const res = await envoyer({
+        ...(activation ? { accepte_cgu: accepteCgu } : {}),
         email, token, password: nouveau, password_confirmation: confirmation,
       })
       setSucces(res.data.message)
@@ -62,7 +64,13 @@ export default function Reinitialiser() {
               <Field label="Confirmer le mot de passe" htmlFor="confirmation" required>
                 <Input id="confirmation" type="password" value={confirmation} onChange={(e) => setConfirmation(e.target.value)} autoComplete="new-password" />
               </Field>
-              <button type="submit" className="btn btn--primary btn--block" disabled={envoi || nouveau.length < 8 || nouveau !== confirmation}>
+              {activation && (
+                <label className="cgu-consentement">
+                  <input type="checkbox" checked={accepteCgu} onChange={(e) => setAccepteCgu(e.target.checked)} />
+                  <span>J’ai lu et j’accepte les <Link to="/cgu" target="_blank" rel="noopener noreferrer">conditions générales d’utilisation</Link>.</span>
+                </label>
+              )}
+              <button type="submit" className="btn btn--primary btn--block" disabled={envoi || nouveau.length < 8 || nouveau !== confirmation || (activation && !accepteCgu)}>
                 {envoi ? <><Spinner size="sm" /> Enregistrement…</> : 'Enregistrer'}
               </button>
             </form>

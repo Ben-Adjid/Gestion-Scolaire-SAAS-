@@ -40,6 +40,7 @@ import AccesApi from './pages/AccesApi'
 import Support from './pages/Support'
 import Donnees from './pages/Donnees'
 import Chatboard from './pages/Chatboard'
+import Cgu from './pages/Cgu'
 import SortiesParent from './pages/SortiesParent'
 import NotificationsParent from './pages/NotificationsParent'
 import AutorisationsSortie from './pages/AutorisationsSortie'
@@ -112,6 +113,7 @@ export default function App() {
     <Routes>
       <Route path="/accueil" element={<Landing />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/cgu" element={<Cgu />} />
       <Route path="/mot-de-passe-oublie" element={<MotDePasseOublie />} />
       <Route path="/reinitialiser" element={<Reinitialiser />} />
       <Route

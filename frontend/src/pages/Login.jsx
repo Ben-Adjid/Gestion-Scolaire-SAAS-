@@ -193,6 +193,8 @@ export default function Login() {
         </form>
         )}
 
+        <p className="login-liens"><Link to="/cgu">Conditions générales d’utilisation</Link></p>
+
         {/* Identifiants de démonstration : affichés seulement en développement, jamais en production. */}
         {import.meta.env.DEV && (
         <div className="login-demo">

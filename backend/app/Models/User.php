@@ -51,6 +51,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'preferences_notifications' => 'array',
+        'cgu_acceptees_le' => 'datetime',
     ];
 
     /** Événements et canaux qu'un parent peut choisir de recevoir (tout est activé par défaut). */
