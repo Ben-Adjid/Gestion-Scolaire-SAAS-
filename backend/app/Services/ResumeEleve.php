@@ -64,6 +64,14 @@ class ResumeEleve
                 'id' => $f->id,
                 'libelle' => $f->libelle, 'annee_scolaire' => $f->annee_scolaire,
                 'montant' => $f->montant_total, 'paye' => $f->montant_paye, 'reste' => $f->reste,
+                // Paiements encaissés : chacun peut donner lieu à un reçu.
+                'paiements' => $f->paiements->where('statut', 'completed')->sortBy('date_paiement')->values()->map(fn ($p) => [
+                    'id' => $p->id,
+                    'date_paiement' => $p->date_paiement?->toDateString(),
+                    'montant' => (float) $p->montant,
+                    'mode_paiement' => $p->mode_paiement,
+                    'reference' => $p->reference,
+                ])->all(),
             ]),
         ];
     }

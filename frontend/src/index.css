@@ -5927,3 +5927,12 @@ textarea.input {
   color: var(--text-muted);
   line-height: 1.5;
 }
+
+/* Boutons secondaires de la connexion : le texte passe à la ligne sur petit écran */
+.login-liens .btn {
+  white-space: normal;
+  max-width: 100%;
+  height: auto;
+  padding: 8px 12px;
+  line-height: 1.35;
+}

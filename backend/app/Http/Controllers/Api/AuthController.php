@@ -30,7 +30,7 @@ class AuthController extends Controller
         if (! $user || ! Hash::check($request->validated('password'), $user->password)) {
             \Illuminate\Support\Facades\RateLimiter::hit($cleEchecs, 900);
             throw ValidationException::withMessages([
-                'email' => ['Les identifiants fournis sont incorrects.'],
+                'email' => ['Adresse e-mail ou mot de passe incorrect.'],
             ]);
         }
 

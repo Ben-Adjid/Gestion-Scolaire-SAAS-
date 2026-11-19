@@ -27,4 +27,12 @@ class InscriptionRequest extends FormRequest
             'type' => ['required', Rule::in(['nouveau', 'ancien'])],
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'date_naissance.before' => 'La date de naissance doit être antérieure à aujourd’hui.',
+            'date_naissance.date' => 'La date de naissance n’est pas valide. Utilisez le format jour/mois/année.',
+        ];
+    }
 }

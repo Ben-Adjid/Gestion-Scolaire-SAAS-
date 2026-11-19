@@ -12,6 +12,7 @@ import { useEtablissement } from '../context/EtablissementContext'
 import { lienWhatsApp } from '../utils/whatsapp'
 import FilResume from '../components/FilResume'
 import { formatMontant } from '../utils/pays'
+import { downloadRecuPdf } from '../utils/pdf'
 
 const ONGLETS = [
   { id: 'presences', label: 'Présences', icone: '' },
@@ -300,7 +301,7 @@ export default function EspaceParent() {
                       : (
                         <div className="table-wrapper">
                           <table className="table">
-                            <thead><tr><th>Frais</th><th>Montant</th><th>Payé</th><th>Reste</th></tr></thead>
+                            <thead><tr><th>Frais</th><th>Montant</th><th>Payé</th><th>Reste</th><th>Reçus</th></tr></thead>
                             <tbody>
                               {resume.frais.map((f, i) => (
                                 <tr key={i}>
@@ -308,6 +309,32 @@ export default function EspaceParent() {
                                   <td>{montant(f.montant)}</td>
                                   <td>{montant(f.paye)}</td>
                                   <td className={Number(f.reste) > 0 ? 'cell-danger' : ''}>{montant(f.reste)}</td>
+                                  <td>
+                                    {(f.paiements || []).length === 0 && <span className="muted">—</span>}
+                                    {(f.paiements || []).map((p) => (
+                                      <button
+                                        key={p.id}
+                                        type="button"
+                                        className="btn btn--ghost btn--sm"
+                                        title={`Reçu du ${p.date_paiement}`}
+                                        onClick={() => {
+                                          try {
+                                            downloadRecuPdf({
+                                              paiement: { id: p.id, date_paiement: p.date_paiement, montant: p.montant, mode_paiement: p.mode_paiement, reference: p.reference },
+                                              frais: { libelle: f.libelle, annee_scolaire: f.annee_scolaire, montant_total: f.montant, montant_paye: f.paye, reste: f.reste },
+                                              eleve: { prenom: resume.eleve?.prenom, nom: resume.eleve?.nom, matricule: resume.eleve?.matricule, classe: resume.classe?.nom },
+                                              etablissement: { ...etablissement, monnaie: etablissement?.pays_info?.monnaie },
+                                              filename: `recu-${String(p.id).padStart(6, '0')}.pdf`,
+                                            })
+                                          } catch (err) {
+                                            toast.error('Le reçu n’a pas pu être généré. Réessayez.')
+                                          }
+                                        }}
+                                      >
+                                        Reçu
+                                      </button>
+                                    ))}
+                                  </td>
                                 </tr>
                               ))}
                             </tbody>

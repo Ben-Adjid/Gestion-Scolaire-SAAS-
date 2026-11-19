@@ -40,6 +40,8 @@ class EtudiantRequest extends FormRequest
             'nom.required' => 'Le nom est requis.',
             'prenom.required' => 'Le prénom est requis.',
             'date_naissance.required' => 'La date de naissance est requise.',
+            'date_naissance.before' => 'La date de naissance doit être antérieure à aujourd’hui.',
+            'date_naissance.date' => 'La date de naissance n’est pas valide. Utilisez le format jour/mois/année.',
             'classe_id.required' => 'La classe est requise.',
             'classe_id.exists' => 'La classe sélectionnée n\'existe pas.',
         ];

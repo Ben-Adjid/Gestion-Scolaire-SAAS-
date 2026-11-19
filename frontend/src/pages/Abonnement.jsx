@@ -14,6 +14,9 @@ const statutLabel = {
   refusee: 'Refusée',
 }
 
+// Libellé affiché : le code XOF s'écrit FCFA pour les utilisateurs.
+const libelleDevise = (code) => (code === 'XOF' ? 'FCFA' : code)
+
 export default function Abonnement() {
   const toast = useToast()
   const { user, logout } = useAuth()
@@ -100,7 +103,7 @@ export default function Abonnement() {
               <Field label="Formule" htmlFor="abonnement-plan" required>
                 <Select id="abonnement-plan" value={plan} onChange={(e) => setPlan(e.target.value)} required>
                   {options.formules.map((f) => (
-                    <option key={f.code} value={f.code}>{f.libelle} — {Number(f.prix_mensuel).toLocaleString('fr-FR')} {options.devise}/mois</option>
+                    <option key={f.code} value={f.code}>{f.libelle} — {Number(f.prix_mensuel).toLocaleString('fr-FR')} {libelleDevise(options.devise)}/mois</option>
                   ))}
                 </Select>
               </Field>
@@ -110,7 +113,7 @@ export default function Abonnement() {
             </div>
             <div className="abonnement-total">
               <span>Total à régler</span>
-              <strong>{montant.toLocaleString('fr-FR')} {options.devise}</strong>
+              <strong>{montant.toLocaleString('fr-FR')} {libelleDevise(options.devise)}</strong>
             </div>
 
             <h3 className="form-titre-section">Mode de paiement manuel</h3>
@@ -204,7 +207,7 @@ export default function Abonnement() {
                     <tr key={d.id}>
                       <td>{new Date(d.created_at).toLocaleDateString('fr-FR')}</td>
                       <td>{options.formules.find((f) => f.code === d.plan)?.libelle || d.plan} · {d.duree_mois} mois</td>
-                      <td>{Number(d.montant).toLocaleString('fr-FR')} {options.devise}</td>
+                      <td>{Number(d.montant).toLocaleString('fr-FR')} {libelleDevise(options.devise)}</td>
                       <td>{d.mode_paiement === 'mobile_money' ? 'Mobile Money' : 'Virement'}</td>
                       <td>{d.reference}</td>
                       <td><span className={`badge ${d.statut === 'approuvee' ? 'badge--success' : d.statut === 'refusee' ? 'badge--danger' : 'badge--warning'}`}>{statutLabel[d.statut]}</span>{d.motif_refus && <p className="field-error">{d.motif_refus}</p>}</td>
