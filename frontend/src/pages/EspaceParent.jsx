@@ -36,6 +36,7 @@ function moyenneDesNotes(notes) {
 
 export default function EspaceParent() {
   const toast = useToast()
+  const { user } = useAuth()
   // Préférence : recevoir les reçus de paiement par e-mail (activé par défaut).
   const [recevoirRecu, setRecevoirRecu] = useState(user?.recevoir_recu_email !== false)
   const [enregistrementRecu, setEnregistrementRecu] = useState(false)
@@ -52,7 +53,6 @@ export default function EspaceParent() {
       setEnregistrementRecu(false)
     }
   }
-  const { user } = useAuth()
   const { etablissement } = useEtablissement()
   const [apercuRecu, setApercuRecu] = useState(null)
   const [enfants, setEnfants] = useState([])
