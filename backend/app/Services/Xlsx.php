@@ -201,13 +201,16 @@ class Xlsx
         // Une ligne de titre (une seule cellule remplie au-dessus des en-têtes) est ignorée :
         // nos propres exports se réimportent ainsi sans retouche.
         $remplies = fn (array $l) => count(array_filter($l, fn ($c) => trim((string) $c) !== ''));
+        // Le nombre de lignes écartées est renvoyé : il permet d'indiquer le numéro de ligne réel du tableur.
+        $sautees = 0;
         while (count($lignes) > 1 && $remplies($lignes[0]) <= 1 && $remplies($lignes[1]) > 1) {
             array_shift($lignes);
+            $sautees++;
         }
 
         $entetes = array_shift($lignes) ?? [];
 
-        return [array_map(fn ($e) => trim((string) $e), $entetes), $lignes];
+        return [array_map(fn ($e) => trim((string) $e), $entetes), $lignes, $sautees];
     }
 
     /** Index de colonne (0 pour A, 25 pour Z, 26 pour AA) à partir d'une référence de cellule (ex. « C5 »). */

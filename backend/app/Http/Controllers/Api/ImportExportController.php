@@ -40,9 +40,9 @@ class ImportExportController extends Controller
         ]);
 
         $fichier = $request->file('fichier');
-        [$entetes, $lignes] = strtolower($fichier->getClientOriginalExtension()) === 'xlsx'
+        [$entetes, $lignes, $titres] = strtolower($fichier->getClientOriginalExtension()) === 'xlsx'
             ? \App\Services\Xlsx::lire($fichier->getRealPath())
-            : $this->lireCsv($fichier->getRealPath());
+            : [...$this->lireCsv($fichier->getRealPath()), 0];
 
         if (empty($entetes)) {
             return response()->json(['message' => 'Le fichier est vide ou illisible.'], 422);
@@ -60,7 +60,7 @@ class ImportExportController extends Controller
             ], 422);
         }
 
-        [$valides, $erreurs] = $this->valider($lignes, $colonnes);
+        [$valides, $erreurs] = $this->valider($lignes, $colonnes, $titres ?? 0);
 
         $resume = [
             'colonnes' => $this->apercuColonnes($entetes, $colonnes),
@@ -145,6 +145,23 @@ class ImportExportController extends Controller
         return response($contenu, 200, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Content-Disposition' => 'attachment; filename="'.$nomFichier.'.xlsx"',
+        ]);
+    }
+
+    /** Modèle Excel vierge à remplir pour importer les élèves : mêmes intitulés que ceux reconnus à l'import. */
+    public function modeleEleves(Request $request)
+    {
+        $contenu = \App\Services\Xlsx::generer(
+            'Élèves',
+            ['Nom', 'Prénom', 'Classe', 'Date de naissance', 'Genre', 'Téléphone', 'Adresse'],
+            [],
+            [],
+            'Import des élèves : une ligne par élève, dates au format jj/mm/aaaa, genre M ou F. Supprimez cette ligne d’explication avant l’import.'
+        );
+
+        return response($contenu, 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="modele-import-eleves.xlsx"',
         ]);
     }
 
@@ -280,13 +297,13 @@ class ImportExportController extends Controller
     }
 
     /** @return array{0: array, 1: array} lignes valides normalisées et erreurs (ligne, message) */
-    private function valider(array $lignes, array $colonnes): array
+    private function valider(array $lignes, array $colonnes, int $titres = 0): array
     {
         $valides = [];
         $erreurs = [];
 
         foreach ($lignes as $numero => $cellules) {
-            $ligne = $numero + 2; // 1 = en-tête
+            $ligne = $numero + 2 + $titres; // numéro de la ligne dans le tableur (1 = en-tête, après les lignes de titre)
             $valeur = fn (string $champ) => isset($colonnes[$champ]) ? trim((string) ($cellules[$colonnes[$champ]] ?? '')) : '';
 
             $nom = $valeur('nom');
@@ -322,6 +339,18 @@ class ImportExportController extends Controller
 
     private function parserDate(string $texte): string
     {
+        // Excel stocke une date sous forme de nombre de jours : 1 = 01/01/1900 (cellule au format date).
+        $texte = trim($texte);
+        if (preg_match('/^\d{1,6}$/', $texte) && (int) $texte >= 1 && (int) $texte <= 2958465) {
+            $jours = (int) $texte;
+            // Excel considère à tort 1900 comme bissextile : au-delà du 28/02/1900, on corrige d'un jour.
+            if ($jours > 60) {
+                $jours--;
+            }
+
+            return Carbon::create(1899, 12, 31)->addDays($jours)->toDateString();
+        }
+
         $formats = ['d/m/Y', 'd-m-Y', 'Y-m-d', 'd/m/y'];
         foreach ($formats as $format) {
             try {

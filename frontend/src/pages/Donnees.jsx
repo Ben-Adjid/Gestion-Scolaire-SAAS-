@@ -23,6 +23,15 @@ export default function Donnees() {
   // Correspondance champ → colonne du fichier, modifiable à l'écran (chaîne vide = champ ignoré).
   const [correspondance, setCorrespondance] = useState({})
 
+  const telechargerModele = async () => {
+    try {
+      const res = await client.get('/import/etudiants/modele', { responseType: 'blob' })
+      telecharger(res.data, 'modele-import-eleves.xlsx')
+    } catch (err) {
+      toast.error(err.message)
+    }
+  }
+
   const envoyer = async (mode, correspondanceChoisie = correspondance) => {
     const formulaire = new FormData()
     formulaire.append('fichier', fichier)
@@ -70,7 +79,7 @@ export default function Donnees() {
         <div className="card-body">
           <p className="form-section-aide">
             Fichier Excel (.xlsx) ou CSV. Les colonnes sont reconnues automatiquement, même avec une faute de frappe.
-            Vérifiez la correspondance avant d’importer. Les doublons sont ignorés.
+            Les dates peuvent être saisies au format jj/mm/aaaa ou comme date Excel. Vérifiez la correspondance avant d’importer. Les doublons sont ignorés.
           </p>
 
           <label className="fichier-depot">
@@ -83,6 +92,7 @@ export default function Donnees() {
           </label>
 
           <div className="form-actions">
+            <button type="button" className="btn btn--ghost" onClick={telechargerModele}>Télécharger le modèle Excel</button>
             <button type="button" className="btn btn--ghost" disabled={!fichier || traitement} onClick={() => envoyer('apercu')}>
               {traitement ? 'Analyse…' : 'Analyser le fichier'}
             </button>

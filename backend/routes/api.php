@@ -167,6 +167,8 @@ Route::middleware(['auth:sanctum', 'subscription', 'enforce_tenant', 'reserve_pa
         ->middleware(['plan:comptabilite_avancee', 'perm_or_role:comptabilite.voir,admin,proviseur,gestionnaire,agent_comptable']);
 
     // Données : import CSV des élèves et exports (CSV compatible Excel).
+    Route::get('/import/etudiants/modele', [ImportExportController::class, 'modeleEleves'])
+        ->middleware('perm_or_role:eleves.importer,admin,secretaire');
     Route::post('/import/etudiants', [ImportExportController::class, 'importerEtudiants'])
         ->middleware('perm_or_role:eleves.importer,admin,secretaire');
     Route::get('/export/etudiants', [ImportExportController::class, 'exporterEtudiants'])
